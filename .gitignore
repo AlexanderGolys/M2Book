@@ -1,0 +1,22 @@
+# Local guidance, notes and plans
+AGENTS.md
+CLAUDE.md
+/notes/
+/plans/
+
+# Books written during development
+/book/
+
+# Local configuration and generated reference artifacts
+/.agents/
+/.codex/
+/.aws/
+/m2-facts.jsonl
+/m2-reference.jsonl
+/m2-index.jsonl
+/reference/
+/*.log
+
+# Python validation artifacts
+__pycache__/
+*.py[cod]

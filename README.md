@@ -153,11 +153,13 @@ The current development outputs are ignored by git:
   fresh-session `default_loaded` packages, followed by structural records and
   hover Markdown. Its line schema is [m2-index.schema.json](m2-index.schema.json).
 
-`protected` reports whether an exported symbol can be reassigned (the negation
-of `isMutable` on the symbol). `mutable` is `isMutable` on its value. Both are
-Boolean fields, or `null` when the query fails. For type records, `mutable`
-describes the type object itself, not instances of the type. These facts appear
-in reference pages and survive projection into the LSP index.
+`mutable` reports whether an exported symbol can be reassigned (`isMutable` on
+the symbol), and `protected` is its inverse. For example, `allowableThreads` is
+mutable, whereas `ZZ` is protected: assigning `allowableThreads = 7` is allowed,
+but assigning `ZZ = 7` is not. These fields describe the binding, independently
+of whether the value's contents can be modified. Both are Boolean fields, or
+`null` when the query fails. These facts appear in reference pages and survive
+projection into the LSP index.
 
 Object and method records also retain `source_location` (absolute filename and
 start/stop rows and columns from `locate`) and `source` (the source lines covering

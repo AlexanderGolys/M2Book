@@ -157,7 +157,7 @@
           ]
         },
         "mutable": {
-          "description": "Result of isMutable on the exported value, independently of symbol protection; null when unknown. For a type this describes the type object itself, not its instances.",
+          "description": "Whether the exported symbol can be reassigned (isMutable on the symbol); the inverse of protected, or null when unknown.",
           "type": [
             "boolean",
             "null"

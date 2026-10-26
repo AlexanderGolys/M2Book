@@ -63,11 +63,17 @@ class ReferencePipelineTest(unittest.TestCase):
             index = directory / "index.jsonl"
 
             run_script("extract_m2_facts.m2", facts, "packages=Core",
-                       "ZZ", "pi", "path", "degree")
+                       "ZZ", "Type", "allowableThreads", "pi", "path", "degree")
             records = read_records(facts)
             by_name = {record["name"]: record for record in records}
-            self.assertEqual(set(by_name), {"ZZ", "pi", "path", "degree"})
-            self.assertIs(by_name["ZZ"]["mutable"], True)
+            self.assertEqual(set(by_name),
+                             {"ZZ", "Type", "allowableThreads", "pi", "path", "degree"})
+            self.assertIs(by_name["ZZ"]["mutable"], False)
+            self.assertIs(by_name["Type"]["mutable"], False)
+            self.assertIs(by_name["Type"]["protected"], True)
+            self.assertIs(by_name["allowableThreads"]["mutable"], True)
+            self.assertIs(by_name["allowableThreads"]["protected"], False)
+            self.assertIs(by_name["path"]["mutable"], True)
             self.assertIs(by_name["pi"]["mutable"], False)
             self.assertIs(by_name["ZZ"]["protected"], True)
             self.assertIs(by_name["path"]["protected"], False)
@@ -106,7 +112,9 @@ class ReferencePipelineTest(unittest.TestCase):
                                          result[name].get("methods", [])):
                     self.assertEqual(after["source_location"], before["source_location"])
                     self.assertEqual(after["source"], before["source"])
-            self.assertIn("**Mutable:** true", result["ZZ"]["markdown"])
+            self.assertIn("**Mutable:** false", result["ZZ"]["markdown"])
+            self.assertIn("**Mutable:** false", result["Type"]["markdown"])
+            self.assertIn("**Mutable:** true", result["allowableThreads"]["markdown"])
             self.assertIn("**Mutable:** false", result["pi"]["markdown"])
             self.assertIn("**Protected:** false", result["path"]["markdown"])
             self.assertNotIn("**Mutable:**", result["path"]["markdown"])

@@ -916,6 +916,7 @@ methodBaseRecord = (name, normalizedName, packageKey, domain, typicalValue) -> h
 extractCommon = (name, sym, value, db, entriesByName) -> (
     className := safeClass(value);
     kind := recordKind(sym, value, className, name);
+    protection := isSymbolProtected sym;
     -- Resolve the documentation once and derive brief/description from it.
     h := helpForRecord(sym, name);
     -- Method-function values point at the shared dispatch machinery; use their
@@ -947,10 +948,8 @@ extractCommon = (name, sym, value, db, entriesByName) -> (
         TagsFun => tags,
         -- wire form: the Indeterminate enum becomes the schema's `boolean?`
         -- null (unknown); true/false pass through unchanged.
-        ProtectedFun => (p := isSymbolProtected sym;
-            if p =!= Indeterminate then p
-        ),
-        MutableFun => (try isMutable value),
+        ProtectedFun => (if protection =!= Indeterminate then protection),
+        MutableFun => (if protection =!= Indeterminate then not protection),
         BriefFun => briefFromHelp h,
         DescriptionFun => fullDescription,
         ExamplesFun => examplesFromHelp h,

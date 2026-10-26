@@ -303,10 +303,11 @@ Node
       the number of records written
   Description
     Text
-      Each line is a complete reference record. The field named protected is
-      the negation of @TO isMutable@ on the symbol, while mutable is
-      @TO isMutable@ on its value. A failed query is represented by null.
-      Mutability of a type describes the type object itself, not its instances.
+      Each line is a complete reference record. The field named mutable is
+      @TO isMutable@ on the exported symbol: whether it can be reassigned.
+      The field named protected is its inverse. A failed query is represented
+      by null. These fields describe symbol bindings, independently of whether
+      the contents of their values can be modified.
 Node
   Key
     standardPackageNames
@@ -376,16 +377,20 @@ TEST ///
 TEST ///
   needsPackage "JSON";
   filename := temporaryFileName();
-  assert(writeReferenceJSON(filename, {"ZZ", "pi", "path", "degree"}, {"Core"}) == 4);
+  assert(writeReferenceJSON(filename, {"ZZ", "Type", "allowableThreads", "pi", "path", "degree"}, {"Core"}) == 6);
   records := hashTable apply(lines get filename, line -> (
       record := fromJSON line;
       record#"name" => record));
   assert(records#"ZZ"#"protected" === true);
-  assert(records#"ZZ"#"mutable" === isMutable ZZ);
+  assert(records#"ZZ"#"mutable" === false);
+  assert(records#"Type"#"protected" === true);
+  assert(records#"Type"#"mutable" === false);
+  assert(records#"allowableThreads"#"protected" === false);
+  assert(records#"allowableThreads"#"mutable" === true);
   assert(records#"pi"#"protected" === true);
   assert(records#"pi"#"mutable" === false);
   assert(records#"path"#"protected" === not isMutable symbol path);
-  assert(records#"path"#"mutable" === isMutable path);
+  assert(records#"path"#"mutable" === isMutable symbol path);
   assert(#(records#"degree"#"methods") > 0);
   removeFile filename;
 ///

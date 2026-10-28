@@ -6,7 +6,8 @@ newPackage(
     Headline => "Alternative book presentation of Macaulay2 documentation",
     Authors => {{
         Name => "Alexander Golys",
-        Email => "alexandergolys@gmail.com"
+        Email => "alexandergolys@gmail.com",
+        HomePage => "https://spectralflux.dev"
     }},
     HomePage => "https://github.com/AlexanderGolys/M2Book",
     Keywords => {"Documentation"},

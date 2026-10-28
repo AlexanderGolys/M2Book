@@ -1,8 +1,8 @@
 -- -*- coding: utf-8 -*-
 newPackage(
     "M2Book",
-    Version => "0.1",
-    Date => "October 20, 2026",
+    Version => "0.1.0",
+    Date => "October 28, 2026",
     Headline => "Alternative book presentation of Macaulay2 documentation",
     Authors => {{
         Name => "Alexander Golys",

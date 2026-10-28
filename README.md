@@ -208,4 +208,4 @@ extraction.
 
 ## License
 
-[MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+[GNU General Public License, version 3](LICENSE).

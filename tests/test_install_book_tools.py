@@ -171,6 +171,15 @@ class M2BookToolsTest(BookToolsFixture):
                               cwd=SCRIPT.parents[1], env=self.env, input=answer,
                               capture_output=True, text=True, timeout=60)
 
+    def test_loading_preserves_markdowndocs_book_commands(self):
+        result = self.run_m2(
+            "assert(mdBook === MarkdownDocs$mdBook);\n"
+            "assert(mdBookPage === MarkdownDocs$mdBookPage);\n"
+            "assert(writeMdBook === MarkdownDocs$writeMdBook);"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("is shadowed", result.stdout + result.stderr)
+
     def test_declining_or_eof_does_not_install(self):
         self.cargo()
         for answer in ["n\n", "\n", "", "maybe\n"]:
@@ -204,7 +213,7 @@ class M2BookToolsTest(BookToolsFixture):
 
     def test_opening_a_book_asks_and_stops_when_declined(self):
         self.cargo()
-        result = self.run_m2('assert((try mdBook "Graphs" else "cancelled") === "cancelled");', "n\n")
+        result = self.run_m2('assert((try viewM2Book "Graphs" else "cancelled") === "cancelled");', "n\n")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Install the missing book tools now?", result.stdout)
         self.assertFalse(Path(self.env["INSTALL_LOG"]).exists())
@@ -234,7 +243,7 @@ printf '%s\n' "$@" > "$BROWSER_LOG"
         suffix = os.path.relpath(self.root / "application", os.environ["HOME"]) + "/"
         result = self.run_m2(
             "applicationDirectorySuffix = " + json.dumps(suffix) + ";\n"
-            'assert(mdBook "JSON" === "http://127.0.0.1:3000/");', "y\n")
+            'assert(viewM2Book "JSON" === "http://127.0.0.1:3000/");', "y\n")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("serve", Path(self.env["SERVE_LOG"]).read_text())
         self.assertIn("http://127.0.0.1:3000/", Path(self.env["BROWSER_LOG"]).read_text())

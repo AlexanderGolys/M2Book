@@ -52,13 +52,13 @@ book has a page for each object:
 ```m2
 needsPackage "M2Book"
 
-mdBook "Graphs"   -- generate a baseline book, serve it and open it in the browser
+viewM2Book "Graphs"   -- generate a baseline book, serve it and open it in the browser
 
 needsPackage "Graphs"
-render mdBookPage (degree, Digraph, Thing)   -- Graphs' page for degree
+render m2BookPage (degree, Digraph, Thing)   -- Graphs' page for degree
 
 -- book/Graphs: index.md, contents.md, a page per object, images/
-writeMdBook("Graphs", "book", LinkedPackages => {"Macaulay2Doc"})
+writeM2Book("Graphs", "book", LinkedPackages => {"Macaulay2Doc"})
 writeBookFiles "book/Graphs"
 ```
 
@@ -72,7 +72,7 @@ replace their generated pages when run again. They are useful for previewing the
 structural presentation and seeding a book. An edited book should be maintained
 through targeted updates that preserve its manual rewrites.
 
-`mdBook` writes a package below `~/.Macaulay2/M2Book/`, makes it an mdBook source
+`viewM2Book` writes a package below `~/.Macaulay2/M2Book/`, makes it an mdBook source
 and serves it with `mdbook serve` in the background, as MarkdownDocs' `mdDocs`
 does for the docs layout.
 
@@ -80,7 +80,7 @@ does for the docs layout.
 
 M2Book needs MarkdownDocs installed. Its viewer uses `mdbook`, `mdbook-tsitter`
 for syntax highlighting, and `mdbook-katex` for mathematics. If tools are missing,
-`mdBook` asks whether to install them before generating the book.
+`viewM2Book` asks whether to install them before generating the book.
 
 ```m2
 installPackage("MarkdownDocs", FileName => "/path/to/MarkdownDocs/MarkdownDocs.m2")
@@ -92,7 +92,7 @@ Open the book from Macaulay2:
 
 ```m2
 needsPackage "M2Book"
-mdBook "Graphs"       -- asks before installing missing dependencies
+viewM2Book "Graphs"       -- asks before installing missing dependencies
 installBookTools()    -- optional: run setup and verification separately
 ```
 
@@ -189,7 +189,18 @@ M2 --script scripts/extract_m2_facts.m2 m2-facts.jsonl packages=default
 M2 --script scripts/assemble_jsonl.m2 reference/src m2-facts.jsonl m2-reference.jsonl m2-index.jsonl
 ```
 
-The regenerated `m2-index.jsonl` can replace the LSP's `src/data/m2-index.jsonl`.
+m2-ls does not ship the index. It downloads `m2-index.jsonl` from the latest
+M2Book release, verifies it against the `m2-index.jsonl.sha256` asset of the
+same release, and downloads again only when a new release is published. Attach
+a regenerated index to a release with:
+
+```sh
+./scripts/publish_index.sh v0.1.0
+```
+
+m2-ls refuses a downloaded index that does not match its wire format, keeping
+any previously cached copy, so publish an incompatible format change only
+together with an m2-ls release that reads it.
 
 Validate the reference pipeline with `python3 -m unittest discover -s tests -v`.
 After installing M2Book, `check "M2Book"` checks book rendering and runtime

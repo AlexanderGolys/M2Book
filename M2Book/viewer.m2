@@ -10,8 +10,6 @@ firstPort := 3000
 -- book directory => (process id, port) of the server serving it
 bookServers := new MutableHashTable
 
-shellQuote := s -> "'" | replace("'", "'\\\\''", s) | "'"
-
 bookToolsInstaller := toAbsolutePath(currentFileDirectory | "install_book_tools.sh")
 bookToolNames := {"mdbook", "mdbook-tsitter", "mdbook-katex"}
 
@@ -63,9 +61,9 @@ ensureBookTools := () -> (
 bookAddress := bookDir -> (
     if not bookServers#?bookDir then (
         port := firstPort + #bookServers;
-        log := viewerDirectory() | baseFilename bookDir | ".log";
+        log := viewerDirectory() | baseFilename bookDir | "-" | toString port | ".log";
         processId := value get("!" | bookCommand concatenate("mdbook serve --hostname 127.0.0.1 --port ", toString port,
-            " --dest-dir ", shellQuote(viewerDirectory() | "site/" | baseFilename bookDir), " ",
+            " --dest-dir ", shellQuote(viewerDirectory() | "site/" | toString port | "/" | baseFilename bookDir), " ",
             shellQuote bookDir, " > ", shellQuote log, " 2>&1 & echo $!"));
         -- mdbook serve builds the book before it listens, and exits when it fails
         sleep 1;
@@ -80,12 +78,32 @@ addEndFunction(() -> scan(values bookServers, server -> run("kill " | toString f
 -- Write and serve this package's book layout.
 viewPackageBook := pkg -> (
     ensureBookTools();
-    bookDir := writeBookFiles writeMdBook(pkg, viewerDirectory() | "markdown");
+    bookDir := writeBookFiles(writeM2Book(pkg, viewerDirectory() | "markdown"),
+        BookTitle => toString pkg | " — Generated");
     address := bookAddress bookDir;
     show URL address;
     address
 )
 
-mdBook = method()
-mdBook String := String => name -> mdBook needsPackage name
-mdBook Package := String => pkg -> viewPackageBook pkg
+viewM2Book = method()
+viewM2Book String := String => name -> viewM2Book needsPackage name
+viewM2Book Package := String => pkg -> viewPackageBook pkg
+
+-- Serve an existing edition without regenerating its sources or configuration.
+openBookDirectory := dir -> (
+    bookDir := toAbsolutePath replace("/+\\z", "", dir);
+    if not fileExists(bookDir | "/book.toml") then
+        error("M2Book: no book.toml in ", bookDir);
+    ensureBookTools();
+    makeDirectory viewerDirectory();
+    address := bookAddress bookDir;
+    show URL address;
+    address
+)
+
+viewCuratedM2Book = method()
+viewCuratedM2Book (String, String) := String => (name, repository) -> (
+    ensureBookTools();
+    openBookDirectory writeCuratedM2Book(name, viewerDirectory() | "curated", repository)
+)
+viewCuratedM2Book String := String => name -> viewCuratedM2Book(name, sourceRepository)

@@ -1,7 +1,7 @@
 -- The book layout. Every method a package shows, documented or not, is a chapter
 -- of its function's page, and every exported symbol without documentation has a
--- page of its own; links point at those chapters and pages. mdBookPage is the
--- page showing a key, writeMdBook the pages of a package.
+-- page of its own; links point at those chapters and pages. m2BookPage is the
+-- page showing a key, writeM2Book the pages of a package.
 
 coreInternal := name -> value Core#"private dictionary"#name
 getPrimaryTag := coreInternal "getPrimaryTag"
@@ -70,12 +70,12 @@ primaryTag := tag -> if tag.Format != tag.Package then getPrimaryTag fixup tag e
 
 -- An installed method's key is a Sequence, its function first; a method key is
 -- one key.
-isMethodKey := method(Dispatch => Thing)
+isMethodKey := method(Dispatch => Thing, TypicalValue => Boolean)
 isMethodKey Thing := key -> false
 isMethodKey Sequence := key -> true
 
 -- An overview's key is its title; it has no page without documentation.
-isOverviewKey := method(Dispatch => Thing)
+isOverviewKey := method(Dispatch => Thing, TypicalValue => Boolean)
 isOverviewKey Thing := key -> false
 isOverviewKey String := key -> true
 
@@ -109,7 +109,10 @@ installingPackage := methodKey -> (
 -- The package showing a method (a tag): the package documenting it, or else the
 -- one installing it.
 methodPackage := tag -> documentingPackage(
-    if documentationPage tag =!= null then (primaryTag tag).Package else installingPackage tag.Key)
+    if documentationPage tag =!= null then
+        (primaryTag tag).Package
+    else installingPackage tag.Key
+)
 
 -- The page (package, page name) holding a method's chapter: the page of its
 -- function in the method's package, or else a page named after the function,
@@ -167,7 +170,9 @@ targetWebsitePage DocumentTag := documentationPage
 targetName := method()
 targetName Sequence := page -> null
 targetName DocumentTag := format
-linkText := (target, text) -> if text === {targetName target} then {MdCode first text} else text
+linkText := (target, text) -> if text === {targetName target} then {
+    MdCode first text
+} else text
 
 -- The book layout's ResolveLink: a target shown in a linked package is linked at
 -- its page, and at its heading when it is a chapter; any other target at its page
@@ -220,7 +225,7 @@ bookMarkup (SPAN, DocumentTag) := (x, primary) -> (
     entry := toList x;
     key := if #entry == 3 and instance(entry#0, KBD) and entry#1 ===
         " -- see " and instance(entry#2, TOH) then
-        nodeTagFormatted(primaryTag entry#2#0, plainText entry#0);
+            nodeTagFormatted(primaryTag entry#2#0, plainText entry#0);
     if key =!= null then
         TOH {key}
     else new SPAN from apply(entry, e -> bookMarkup(e, primary))
@@ -247,14 +252,14 @@ hypertextContents := x -> select(deepSplice toList x, e -> not instance(e, Optio
 
 -- The hypertext within x satisfying a predicate, outermost first.
 hypertextSelect := (x, predicate) -> (
-    if predicate x then {x}
-    else if instance(x, Hypertext) then flatten apply(toList x, e -> hypertextSelect(e, predicate))
+    if predicate x then {x} else if instance(x, Hypertext) then
+        flatten apply(toList x, e -> hypertextSelect(e, predicate))
     else {}
 )
 
 -- A section of help's page: a DIV headed by a HEADER2 with a title isTitle accepts.
 isSection := isTitle -> x -> instance(x, DIV) and any(hypertextContents x, e ->
-    instance(e, HEADER2) and isTitle plainText e)
+        instance(e, HEADER2) and isTitle plainText e)
 
 -- The titles of the sections of help's pages the book shows otherwise: the class
 -- from "For the programmer" in the details, the citation at the end, and the
@@ -267,30 +272,41 @@ isWaysToUseTitle := title -> match("\\AWays to use ", title)
 withoutSection := method()
 withoutSection (Thing, Function) := (x, isTitle) -> x
 withoutSection (Hypertext, Function) := (x, isTitle) -> new class x from apply(
-    select(toList x, e -> not (isSection isTitle) e), e -> withoutSection(e, isTitle))
+    select(toList x, e -> not (isSection isTitle) e), e -> withoutSection(e, isTitle)
+)
 
 -- The class of an object as "For the programmer" says it, such as "a method
 -- function", or null.
 programmerClass := body -> (
     sections := hypertextSelect(body, isSection isProgrammerTitle);
-    paragraphs := if #sections > 0 then select(hypertextContents first sections, e -> instance(e, PARA)) else {};
-    entries := if #paragraphs > 0 then hypertextContents first paragraphs else {};
+    paragraphs := if #sections > 0 then
+            select(hypertextContents first sections, e -> instance(e, PARA))
+        else {};
+    entries := if #paragraphs > 0 then
+            hypertextContents first paragraphs
+        else {};
     is := position(entries, e -> e === " is ");
-    if is =!= null then SPAN take(entries, {is + 1, #entries - 2})
+    if is =!= null then
+        SPAN take(entries, {is + 1, #entries - 2})
 )
 
 -- A synopsis item of help (an LI) as (title, contents) when it lists inputs,
 -- optional inputs or outputs, which the details show; null otherwise.
 synopsisDetail := item -> (
     entries := hypertextContents item;
-    title := if #entries > 0 then plainText first entries;
-    if title === "Inputs:" or title === "Outputs:" then (replace(":", "", title), drop(entries, 1))
-    else if title === "Optional inputs" then (title, drop(entries, 2))
+    title := if #entries > 0 then
+            plainText first entries;
+    if title === "Inputs:" or title === "Outputs:" then (replace(":", "",
+        title), drop(entries, 1)) else if title === "Optional inputs" then (
+            title, drop(entries, 2)
+        )
 )
 
 -- A synopsis item naming a method's function, which the book does not show: the
 -- method's chapter is on the function's page.
-isFunctionItem := item -> match(///\A(Function|Operator|Scripted functor): ///, plainText item)
+isFunctionItem := item -> match(
+    ///\A(Function|Operator|Scripted functor): ///, plainText item
+)
 
 -- The object a key documents: a symbol's value; the raw documentation of an
 -- installed package keeps a symbol's key as its name.
@@ -308,16 +324,20 @@ ancestorsLine Thing := x -> {}
 ancestorsLine Type := type -> {
     MdParagraph MdHTML "<div align=\"center\">",
     MdParagraph between(ancestorSeparator,
-        apply(ancestors type, ancestor -> MdDocLink {makeDocumentTag ancestor, MdCode toString ancestor})),
-    MdParagraph MdHTML "</div>"}
+        apply(ancestors type, ancestor -> MdDocLink {makeDocumentTag ancestor,
+            MdCode toString ancestor})),
+    MdParagraph MdHTML "</div>"
+}
 
 -- A heading naming a key's object, its name as code; an overview's title, or a
 -- package's name, as prose. An object is one key.
 isCodeTitle := method(Dispatch => Thing)
 isCodeTitle Thing := object -> true
 isCodeTitle String :=
-    isCodeTitle Package := object -> false
-objectHeading := (level, key, name) -> MdHeading(level, if isCodeTitle keyObject key then MdCode name else name)
+isCodeTitle Package := object -> false
+objectHeading := (level, key, name) -> MdHeading(level, if isCodeTitle keyObject key then
+            MdCode name
+        else name)
 
 -- The package an object belongs to; an overview, named by a string, belongs to none.
 objectPackage := method(Dispatch => Thing)
@@ -328,14 +348,15 @@ objectPackage String := key -> null
 -- package documenting it (a package name; Core is documented by Macaulay2Doc).
 packageFacts := (key, pkgname) -> (
     owner := objectPackage keyObject key;
-    if owner === null or documentingPackage owner#"pkgname" === pkgname then {}
-    else {("Package", {MdCode owner#"pkgname"})}
+    if owner === null or documentingPackage owner#"pkgname" ===
+        pkgname then {} else {("Package", {MdCode owner#"pkgname"})}
 )
 
 -- The details section: a list of facts, each a label and its value, the value a
 -- list of inline elements or of blocks.
 detailsSection := facts -> if #facts == 0 then {} else {MdHeading(2, "Details"),
-    MdList apply(facts, (label, value) -> prepend(MdStrong(label | ":"), prepend(" ", value)))}
+    MdList apply(facts, (label, value) -> prepend(MdStrong(label | ":"),
+        prepend(" ", value)))}
 
 -- file:line of a source position.
 sourceText := source -> concatenate(baseFilename source#0, ":", toString source#1)
@@ -346,7 +367,9 @@ shiftHeadings := method()
 shiftHeadings (Thing, ZZ) := (x, levels) -> x
 shiftHeadings (List, ZZ) := shiftHeadings (MdDocument, ZZ) := (blocks, levels) ->
     apply(blocks, block -> shiftHeadings(block, levels))
-shiftHeadings (MdHeading, ZZ) := (heading, levels) -> MdHeading prepend(heading#0 + levels, drop(toList heading, 1))
+shiftHeadings (MdHeading, ZZ) := (heading, levels) -> MdHeading prepend(
+    heading#0 + levels, drop(toList heading, 1)
+)
 
 -- A node's page in the book layout, and apart from it the footer the page shows
 -- at its bottom. Under its title and headline the details: the class of the
@@ -358,49 +381,67 @@ bookNode := primary -> (
     if #children == 0 or not instance(first children, HEADER1) then
         return (markdown body, {});
     heading := toList first children;
-    description := replace(///\A -- ///, "", concatenate apply(drop(heading, 1), plainText));
+    description := replace(///\A -- ///, "", concatenate apply(drop(heading,
+        1), plainText));
     rest := drop(children, 1);
-    synopsis := if #rest > 0 and instance(first rest, UL) then hypertextContents first rest else {};
-    if #synopsis > 0 then rest = drop(rest, 1);
+    synopsis := if #rest > 0 and instance(first rest, UL) then
+            hypertextContents first rest
+        else {};
+    if #synopsis > 0 then
+        rest = drop(rest, 1);
     details := select(apply(synopsis, synopsisDetail), detail -> detail =!= null);
-    usage := select(synopsis, item -> synopsisDetail item === null and not isFunctionItem item);
+    usage := select(synopsis, item -> synopsisDetail item === null and
+            not isFunctionItem item);
     -- the footer: what follows the rule closing help's page
-    closing := if #rest > 0 then hypertextContents last rest else {};
+    closing := if #rest > 0 then
+            hypertextContents last rest
+        else {};
     rule := position(closing, e -> instance(e, HR));
-    footer := if rule =!= null then drop(closing, rule + 1) else {};
-    if rule =!= null then rest = append(drop(rest, -1), DIV take(closing, rule));
+    footer := if rule =!= null then
+            drop(closing, rule + 1)
+        else {};
+    if rule =!= null then
+        rest = append(drop(rest, -1), DIV take(closing, rule));
     citations := hypertextSelect(DIV rest, isSection isCitationTitle);
     class' := programmerClass DIV rest;
     rest = apply(rest, e -> fold({isProgrammerTitle, isCitationTitle, isWaysToUseTitle},
-            e, (isTitle, section) -> withoutSection(section, isTitle)));
-    aliases := select(apply(secondaryTags primary, tag -> aliasName tag.Key), name -> name =!= null);
+        e, (isTitle, section) -> withoutSection(section, isTitle)));
+    aliases := select(apply(secondaryTags primary, tag -> aliasName tag.Key),
+        name -> name =!= null);
     ancestry := ancestorsLine keyObject primary.Key;
     facts := join(
         if class' =!= null and #ancestry == 0 then {("Class", {markdown class'})} else {},
         packageFacts(primary.Key, primary.Package),
-        if #aliases > 0 then {("Aliases", between(", ", apply(aliases, name -> MdCode name)))} else {},
-        apply(details, (title, entries) -> (title, {markdown entries})));
+        if #aliases > 0 then {("Aliases", between(", ", apply(aliases, name ->
+                MdCode name)))} else {},
+        apply(details, (title, entries) -> (title, {markdown entries}))
+    );
     page := documentationPage primary;
     (MdDocument join({objectHeading(1, primary.Key, first heading)},
-            ancestry,
-            if description == "" then {} else {noteCallout description},
-            detailsSection facts,
-            if #usage > 0 then {shiftHeadings(markdown UL usage, -1)} else {},
-            {markdown rest},
-            apply(citations, markdown)),
+        ancestry,
+        if description == "" then {} else {noteCallout description},
+        detailsSection facts,
+        if #usage > 0 then {shiftHeadings(markdown UL usage, -1)} else {},
+        {markdown rest},
+        apply(citations, markdown)),
         join(apply(footer, markdown), if page === null then {} else {
-            MdParagraph {"Original documentation: ", MdLink {onlinePage(page#0, page#1), "Macaulay2 website"}, "."}}))
+            MdParagraph {"Original documentation: ", MdLink {onlinePage(
+                page#0, page#1
+            ), "Macaulay2 website"}, "."}
+        }))
 )
 
 -- The function of a node: the function of a method node, or the node's own object.
-nodeFunctionName := primary -> format makeDocumentTag(if isMethodKey primary.Key then first primary.Key else primary.Key)
+nodeFunctionName := primary -> format makeDocumentTag(if isMethodKey primary.Key then
+            first primary.Key
+        else primary.Key)
 
 -- For a method of an alias of the function its node documents, which alias:
 -- "A method of addVertices, an alias of addVertex; "; nothing otherwise.
 aliasNote := (tag, primary) -> (
     functionName := format makeDocumentTag first tag.Key;
-    if functionName === nodeFunctionName primary then {}
-    else {"A method of ", MdCode functionName, ", an alias of ", MdCode nodeFunctionName primary, "; "}
+    if functionName === nodeFunctionName primary then {} else {"A method of ",
+        MdCode functionName, ", an alias of ", MdCode nodeFunctionName primary, "; "}
 )
 
 -- The chapter of a method on a page (package, page name), and the footer it adds
@@ -411,18 +452,28 @@ methodChapter := (tag, page) -> (
     if documentationPage tag === null then (
         source := methodSource tag.Key;
         return (MdDocument prepend(heading, shiftHeadings(detailsSection join(
-                {("Documentation", {"none"})},
-                if source =!= null then {("Defined at", {MdCode sourceText source})} else {}), 1)), {}));
+            {("Documentation", {"none"})},
+            if source =!= null then {("Defined at", {
+                MdCode sourceText source
+            })} else {}
+        ), 1)), {})
+    );
     primary := primaryTag tag;
     if format primary === format tag and isChapterNode primary then (
         (node, footer) := bookNode primary;
-        (shiftHeadings(node, 1), if #footer == 0 then {} else prepend(MdParagraph MdStrong format tag, footer)))
-    else (
+        (shiftHeadings(node, 1), if #footer == 0 then {} else prepend(
+            MdParagraph MdStrong format tag, footer
+        ))
+    ) else (
         note := aliasNote(tag, primary);
         (MdDocument {heading, MdParagraph join(
-                if #note == 0 then {"Documented "} else append(note, "documented "),
-                if take(bookLocation primary, 2) === page then {"above."}
-                else {"with ", MdDocLink {primary, format primary}, "."})}, {}))
+            if #note == 0 then {"Documented "} else append(note, "documented "),
+            if take(bookLocation primary, 2) === page then {
+                "above."
+            } else {"with ", MdDocLink {primary,
+                format primary}, "."}
+        )}, {})
+    )
 )
 
 -- Where a key is defined, when that is known: a symbol's definition.
@@ -435,11 +486,17 @@ keySource Symbol := locate
 missingIntroduction := tag -> (
     source := keySource tag.Key;
     ancestry := ancestorsLine keyObject tag.Key;
-    (MdDocument join({objectHeading(1, tag.Key, format tag)}, ancestry, detailsSection join(
-            if #ancestry == 0 then {("Class", {MdCode toString class keyObject tag.Key})} else {},
+    (MdDocument join({objectHeading(1, tag.Key, format tag)}, ancestry,
+        detailsSection join(
+            if #ancestry == 0 then {("Class", {
+                MdCode toString class keyObject tag.Key
+            })} else {},
             packageFacts(tag.Key, documentingPackage tag.Package),
             {("Documentation", {"none"})},
-            if source =!= null then {("Defined at", {MdCode sourceText source})} else {})), {})
+            if source =!= null then {("Defined at", {
+                MdCode sourceText source
+            })} else {}
+        )), {})
 )
 
 -- The top of a page made in a package for the methods it installs on a function
@@ -448,9 +505,12 @@ functionPageIntroduction := (functionTag, pkgname) -> (
     title := format functionTag;
     origin := documentationPage functionTag;
     (MdDocument join({objectHeading(1, functionTag.Key, title)}, detailsSection join(
-            {("Class", {MdCode toString class keyObject functionTag.Key})},
-            packageFacts(functionTag.Key, pkgname),
-            {("Documentation", if origin === null then {"none"} else {MdDocLink {functionTag, title}, " in ", origin#0})}),
+        {("Class", {MdCode toString class keyObject functionTag.Key})},
+        packageFacts(functionTag.Key, pkgname),
+        {("Documentation", if origin === null then {"none"} else {MdDocLink {
+            functionTag, title
+        }, " in ", origin#0})}
+    ),
         {MdParagraph {pkgname, " installs the methods below."}}), {})
 )
 
@@ -461,11 +521,13 @@ exportSection := method(Dispatch => Thing)
 exportSection Thing := key -> "Other things"
 exportSection Type := key -> "Types"
 exportSection Function :=
-    exportSection Command := key -> "Functions and commands"
+exportSection Command := key -> "Functions and commands"
 -- a symbol by its value; a symbol without a value is listed as itself
-exportSection Symbol := key -> if value key === key then "Symbols" else exportSection value key
+exportSection Symbol := key -> if value key ===
+    key then "Symbols" else exportSection value key
 -- the raw documentation of an installed package keeps a symbol's key as its name
-exportSection String := key -> if isGlobalSymbol key then exportSection getGlobalSymbol key
+exportSection String := key ->
+    if isGlobalSymbol key then exportSection getGlobalSymbol key
 
 -- The sections of the table of contents, in order; "Methods" lists the pages made
 -- for functions documented elsewhere.
@@ -478,7 +540,8 @@ sectionPageName := section -> replace(" ", "-", toLower section)
 sectionDocument := (pkgname, section, entries) -> MdDocument {
     MdHeading(1, section),
     MdParagraph {"Part of the exports of ", MdLink {"index.md", pkgname}, "."},
-    MdList apply(entries, (name, title) -> {MdLink {name | ".md", title}})}
+    MdList apply(entries, (name, title) -> {MdLink {name | ".md", title}})
+}
 
 -- The methods of an exported object; a method key is one key.
 exportedMethods := method(Dispatch => Thing)
@@ -490,7 +553,7 @@ exportedMethods ScriptedFunctor := x -> toList methods x
 
 -- The packages whose code a package documents: itself, and Core for Macaulay2Doc.
 sourcePackages := pkg -> unique prepend(pkg, select(loadedPackages, source ->
-    documentingPackage source#"pkgname" === documentingPackage pkg#"pkgname"))
+        documentingPackage source#"pkgname" === documentingPackage pkg#"pkgname"))
 
 -- The methods a package shows, as tags: the methods it documents, and the
 -- methods of the exported objects of its code it installs; a method listed once.
@@ -503,7 +566,8 @@ packageMethods := pkg -> (
             exportedMethods value sym), makeDocumentTag),
         tag -> isMethodKey tag.Key and methodPackage tag === pkgname);
     byFormat := new MutableHashTable;
-    scan(join(documented, installed), tag -> if not byFormat#?(format tag) then byFormat#(format tag) = tag);
+    scan(join(documented, installed), tag -> if not byFormat#?(format tag) then
+                byFormat#(format tag) = tag);
     values byFormat
 )
 
@@ -516,10 +580,10 @@ protect PageTop
 protect PageChapters
 
 bookPage := (title, section, top, chapters) -> new HashTable from {
-    symbol PageTitle => title,
-    symbol PageSection => section,
-    symbol PageTop => top,
-    symbol PageChapters => last \ sort apply(chapters, tag -> (format tag, tag))
+    PageTitle => title,
+    PageSection => section,
+    PageTop => top,
+    PageChapters => last \ sort apply(chapters, tag -> (format tag, tag))
 }
 
 -- The pages of a package in the book layout, page name => page: a page for each
@@ -532,19 +596,24 @@ packageBookPages = pkg -> (
     -- symbols of the same name, from several dictionaries, share their page
     missingTags := select(flatten apply(sourcePackages pkg, packageSymbolTags), tag ->
             isMissingDoc tag and not isUndocumented tag);
-    missingPages := hashTable(first, apply(missingTags, tag -> toFilename format tag => tag));
+    missingPages := hashTable(first, apply(missingTags, tag ->
+            toFilename format tag => tag));
     if #nodePages + #missingPages != #(set keys nodePages + set keys missingPages) or
         #nodePages != #nodeTags then
         error("M2Book: page names collide in ", pkgname);
     chapters := partition(tag -> (methodPage tag)#1,
         select(packageMethods pkg, tag -> (methodPage tag)#0 === pkgname));
-    chaptersOf := page -> if chapters#?page then chapters#page else {};
+    chaptersOf := page -> if chapters#?page then
+            chapters#page
+        else {};
     functionPages := select(keys chapters, page -> not nodePages#?page and
             not missingPages#?page);
     hashTable join(
-        apply(pairs nodePages, (page, tag) -> page => bookPage(format tag, exportSection tag.Key,
+        apply(pairs nodePages, (page, tag) -> page => bookPage(format tag,
+            exportSection tag.Key,
             () -> bookNode tag, chaptersOf page)),
-        apply(pairs missingPages, (page, tag) -> page => bookPage(format tag, exportSection tag.Key,
+        apply(pairs missingPages, (page, tag) -> page => bookPage(format tag,
+            exportSection tag.Key,
             () -> missingIntroduction tag, chaptersOf page)),
         apply(functionPages, page -> (
             functionTag := makeDocumentTag first (first chapters#page).Key;
@@ -562,12 +631,17 @@ bookPageDocument = (pkgname, name, page) -> (
     chapters := apply(page.PageChapters, tag -> methodChapter(tag, (pkgname, name)));
     footers := join(topFooter, flatten apply(chapters, last));
     MdDocument join({top},
-        if #chapters > 0 then prepend(MdHeading(2, "Installations"), apply(chapters, chapter -> shiftHeadings(first chapter, 1))) else {},
-        if #footers > 0 then prepend(MdRule(), footers) else {})
+        if #chapters > 0 then
+            prepend(MdHeading(2, "Installations"), apply(chapters, chapter ->
+                    shiftHeadings(first chapter, 1)))
+        else {},
+        if #footers > 0 then
+            prepend(MdRule(), footers)
+        else {})
 )
 
-mdBookPage = method(Dispatch => Thing)
-mdBookPage Thing := MdDocument => key -> (
+m2BookPage = method(Dispatch => Thing)
+m2BookPage Thing := MdDocument => key -> (
     location := bookLocation makeDocumentTag key;
     if location === null then
         error("M2Book: no page shows ", toString key);
@@ -589,26 +663,42 @@ bookLayout := (pkg, tags) -> (
     pageOf := tag -> (
         location := bookLocation tag;
         if location =!= null and location#0 === pkgname and pages#?(location#1) then
-            (location#1, pages#(location#1).PageTitle));
-    nodePages := set apply(select(tags, tag -> pageOf tag =!= null), tag -> (pageOf tag)#0);
+            (location#1, pages#(location#1).PageTitle)
+    );
+    nodePages := set apply(select(tags, tag -> pageOf tag =!= null), tag -> (
+        pageOf tag
+    )#0);
     sectionEntries := select(apply(bookSections, section -> (section,
-            apply(select(sort keys pages, name -> pages#name.PageSection === section), name -> (name, pages#name.PageTitle)))),
+        apply(select(sort keys pages, name -> pages#name.PageSection ===
+                section), name -> (name, pages#name.PageTitle)))),
         (section, entries) -> #entries > 0);
     sectionPage := section -> if section =!= null then (sectionPageName section, section);
     new HashTable from {
         Documents => merge(
-            applyPairs(pages, (name, page) -> (name, () -> bookPageDocument(pkgname, name, page))),
-            hashTable apply(sectionEntries, (section, entries) -> sectionPageName section =>
-                () -> sectionDocument(pkgname, section, entries)),
-            (page, section) -> error("M2Book: a page is named like a section in ", pkgname)),
+            applyPairs(pages, (name, page) -> (name, () -> bookPageDocument(
+                pkgname, name, page
+            ))),
+            hashTable apply(sectionEntries, (section, entries) ->
+                    sectionPageName section =>
+                    () -> sectionDocument(pkgname, section, entries)),
+            (page, section) -> error(
+                "M2Book: a page is named like a section in ", pkgname
+            )
+        ),
         PageOf => pageOf,
-        OutlineOrder => join(select(tags, tag -> not isChapterNode tag), select(tags, isChapterNode)),
-        ExtraPages => apply(select(sort keys pages, name -> not nodePages#?name), name -> (name, pages#name.PageTitle)),
+        OutlineOrder => join(select(tags, tag -> not isChapterNode tag),
+            select(tags, isChapterNode)),
+        ExtraPages => apply(select(sort keys pages, name ->
+                not nodePages#?name), name -> (name, pages#name.PageTitle)),
         Sections => apply(sectionEntries, (section, entries) -> sectionPage section),
         SectionOf => page -> sectionPage pages#(page#0).PageSection,
-        ResolveLink => resolveBookLink}
+        ResolveLink => resolveBookLink
+    }
 )
 
-writeMdBook = method(Options => packageDirectoryOptions)
-writeMdBook (String, String) := String => opts -> (name, dir) -> writeMdBook(needsPackage name, dir, opts)
-writeMdBook (Package, String) := String => opts -> (pkg, dir) -> writePackageDirectory(pkg, dir, opts, bookLayout)
+writeM2Book = method(Options => packageDirectoryOptions)
+writeM2Book (String, String) := String => opts -> (name, dir) -> writeM2Book(
+    needsPackage name, dir, opts
+)
+writeM2Book (Package, String) := String => opts -> (pkg, dir) ->
+    writePackageDirectory(pkg, dir, opts, bookLayout)

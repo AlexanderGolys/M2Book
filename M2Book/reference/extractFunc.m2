@@ -198,15 +198,16 @@ optionRecords = (opts, db, funcName) -> (
 
 -- How a method function takes options, which decides the names a call may
 -- pass: "table" accepts exactly the keys of its option table (`Options =>
--- {...}`, or none for `Options => false`), "forwarded" (`Options => true`)
--- hands them to the installation the call reaches, and "absent" takes none.
--- Null when `methodOptions` cannot tell.
+-- {...}`), "open" (`Options => false`) passes any names as a table,
+-- "forwarded" (`Options => true`) hands them to the installation the call
+-- reaches, and "absent" takes none. Null when `methodOptions` cannot tell.
 methodOptionPassing = value -> (
     optionTable := try methodOptions value;
     if optionTable =!= null and optionTable#?Options then (
         opts := optionTable#Options;
         if opts === null then "absent"
         else if opts === true then "forwarded"
+        else if opts === false then "open"
         else "table"
     )
 )

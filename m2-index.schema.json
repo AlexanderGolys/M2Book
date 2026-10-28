@@ -181,11 +181,12 @@
           "description": "Source lines covering the definition span when the source file is readable; null otherwise."
         },
         "option_passing": {
-          "description": "How a callable takes keyword options: \"table\" accepts exactly the keys in `options` (none when it is empty), \"forwarded\" (a method function declared with Options => true) passes them to the installation a call reaches, whose own `options` list the accepted keys, and \"absent\" takes none. null when it cannot be determined, including plain functions without an option table. [callables]",
+          "description": "How a callable takes keyword options: \"table\" accepts exactly the keys in `options` (none when it is empty), \"open\" (a method function declared with Options => false) accepts any names and passes them as a table, \"forwarded\" (Options => true) passes them to the installation a call reaches, whose own `options` list the accepted keys, and \"absent\" takes none. null when it cannot be determined, including plain functions without an option table. [callables]",
           "oneOf": [
             {
               "enum": [
                 "table",
+                "open",
                 "forwarded",
                 "absent"
               ]

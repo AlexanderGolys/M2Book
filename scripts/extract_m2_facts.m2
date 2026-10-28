@@ -19,7 +19,7 @@
 -- that M2Book imports for its own rendering).
 defaultLoadedPackages := sort apply(loadedPackages, toString)
 
-load(currentFileDirectory | "load_package.m2")
+load "./load_package.m2"
 
 -- Use := (file-local) so these never become documented User globals.
 scriptArgs := drop(scriptCommandLine, 1)

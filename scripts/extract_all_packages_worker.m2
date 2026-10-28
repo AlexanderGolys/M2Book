@@ -8,7 +8,7 @@
 --      package-output packages-csv core-names-file core-output
 -- A dash disables the corresponding package or Core phase.
 
-load(currentFileDirectory | "load_package.m2")
+load "./load_package.m2"
 
 args := drop(scriptCommandLine, 1);
 if #args != 4 then

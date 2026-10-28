@@ -26,7 +26,8 @@
 defaultLoaded := sort apply(loadedPackages, toString)
 
 needsPackage "JSON"
-load(currentFileDirectory | "../M2Book/reference/extractCommon.m2")   -- normalizeName
+load "./load_package.m2"
+importFrom("M2Book", {"normalizeName", "denormalizeName", "stripWs"})
 
 args = drop(scriptCommandLine, 1)
 inputDir = if #args > 0 then args#0 else "book/src"
@@ -45,26 +46,6 @@ refName = key -> last separate("[$]", key)
 -- ---------------------------------------------------------------------------
 -- Low-level markdown helpers.
 -- ---------------------------------------------------------------------------
--- Trim only boundary lines. A single anchored alternation over a very large
--- rendered section can exceed Boost.Regex's complexity guard (VectorGraphics
--- and other full-corpus pages expose this during assembly).
-stripWs = s -> (
-    ls := separate("\n", s);
-    while #ls > 0 and match("^[ \t\r]*$", first ls) do ls = drop(ls, 1);
-    while #ls > 0 and match("^[ \t\r]*$", last ls) do ls = drop(ls, -1);
-    if #ls == 0 then
-        ""
-    else (
-        lastIndex := #ls - 1;
-        trimmed := apply(#ls, i -> (
-            line := ls#i;
-            if i == 0 then line = replace("^[ \t\r]+", "", line);
-            if i == lastIndex then line = replace("[ \t\r]+$", "", line);
-            line
-        ));
-        demark("\n", trimmed)
-    )
-)
 -- Hover markdown for the LSP is the rendered reference page itself, with the one
 -- book-specific transform reversed: render_markdown escapes a leading `##`/`###`
 -- in prose as `\##`/`\###` so its inverse parser does not mistake it for a

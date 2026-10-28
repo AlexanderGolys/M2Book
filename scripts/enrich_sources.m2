@@ -1,7 +1,7 @@
 -- Complete and normalize source metadata after combining package checkpoints.
 -- Usage: M2 --script scripts/enrich_sources.m2 input.jsonl output.jsonl [preload=all]
 
-load(currentFileDirectory | "load_package.m2")
+load "./load_package.m2"
 needsPackage "JSON"
 importFrom("M2Book", {"sourceLocationFor", "sourceTextFor", "sourceFilePath", "jsonReady"})
 

@@ -17,7 +17,8 @@
 --   M2 --script scripts/render_markdown.m2 [m2-facts.jsonl] [book/src]
 
 needsPackage "JSON"
-load(currentFileDirectory | "../M2Book/reference/extractCommon.m2")   -- normalizeName / denormalizeName
+load "./load_package.m2"
+importFrom("M2Book", {"normalizeName", "denormalizeName", "sourceFilePath", "capitalize"})
 
 args = drop(scriptCommandLine, 1)
 inputPath = if #args > 0 then args#0 else "m2-facts.jsonl"

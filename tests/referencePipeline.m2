@@ -24,6 +24,13 @@ assembleIndex = (dir, facts) -> (
 
 optionNamed = (options, key) -> first select(options, option -> option#"key" == key)
 
+testCase("a variable is not taken for an alias of its value", () -> (
+    -- lastMatch is null before any match, the value of the symbol null
+    result := runScript("list_package_reference_names.m2", {"Core"});
+    succeeds(result, "listing the names of Core");
+    names := set lines result#"stdout";
+    expect(names#?"lastMatch" and names#?"null", "both lastMatch and null listed", result)))
+
 testCase("invalid source spans are recovered", () -> (
     dir := scratchDirectory "m2book-sources";
     facts := dir | "/facts.jsonl";

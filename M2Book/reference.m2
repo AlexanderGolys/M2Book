@@ -55,7 +55,8 @@ packageReferenceNames = packageName -> (
                 false
             else (
                 cp := try toString val;
-                aliasDuplicate := cp =!= null and cp =!= name and nameSet#?cp and (
+                -- a variable is never an alias, whatever value it holds now
+                aliasDuplicate := not isMutable sym and cp =!= null and cp =!= name and nameSet#?cp and (
                     canonicalSym := symbolForName(runtimeDict, cp);
                     canonicalSym =!= null and (valueForSymbol canonicalSym) === val
                 );

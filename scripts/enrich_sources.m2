@@ -3,7 +3,7 @@
 
 load "./load_package.m2"
 needsPackage "JSON"
-importFrom("M2Book", {"sourceLocationFor", "sourceTextFor", "sourceFilePath", "jsonReady"})
+importFrom("M2Book", {"sourceLocationFor", "sourceTextFor", "sourceFilePath", "jsonReady", "standardPackageNames"})
 
 args := drop(scriptCommandLine, 1);
 if #args < 2 or #args > 3 or (#args == 3 and args#2 =!= "preload=all") then

@@ -213,7 +213,7 @@ class M2BookToolsTest(BookToolsFixture):
 
     def test_opening_a_book_asks_and_stops_when_declined(self):
         self.cargo()
-        result = self.run_m2('assert((try viewM2Book "Graphs" else "cancelled") === "cancelled");', "n\n")
+        result = self.run_m2('assert((try viewBook "Graphs" else "cancelled") === "cancelled");', "n\n")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Install the missing book tools now?", result.stdout)
         self.assertFalse(Path(self.env["INSTALL_LOG"]).exists())
@@ -243,11 +243,11 @@ printf '%s\n' "$@" > "$BROWSER_LOG"
         suffix = os.path.relpath(self.root / "application", os.environ["HOME"]) + "/"
         result = self.run_m2(
             "applicationDirectorySuffix = " + json.dumps(suffix) + ";\n"
-            'assert(viewM2Book "JSON" === "http://127.0.0.1:3000/");', "y\n")
+            'assert(viewBook "JSON" === "http://127.0.0.1:3000/index.html");', "y\n")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("serve", Path(self.env["SERVE_LOG"]).read_text())
-        self.assertIn("http://127.0.0.1:3000/", Path(self.env["BROWSER_LOG"]).read_text())
-        self.assertTrue((self.root / "application/M2Book/markdown/JSON/book.toml").is_file())
+        self.assertIn("http://127.0.0.1:3000/index.html", Path(self.env["BROWSER_LOG"]).read_text())
+        self.assertTrue((self.root / "application/M2Book/curated/JSON/book.toml").is_file())
 
     def test_installation_failure_is_reported_to_m2(self):
         self.executable("cargo", "#!/bin/bash\nexit 7\n")

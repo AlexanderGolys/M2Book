@@ -2,5 +2,6 @@
 -- packages are intentionally absent because --script runs M2 with -q.
 
 load "./load_package.m2"
+importFrom("M2Book", {"standardPackageNames"})
 scan(standardPackageNames(), pkg -> print pkg)
 exit 0

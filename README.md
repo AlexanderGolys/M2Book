@@ -1,42 +1,42 @@
 # M2Book
 
-M2Book generates an alternative book presentation of local Macaulay2
-documentation, reorganizing chapters and links around objects and their methods.
-It currently uses mdBook to render and serve that book in the browser, as
-MarkdownDocs does for its faithful presentation. Both packages use the
-`mdbook` executable; M2Book can offer to install missing book tools when opened.
+M2Book presents the Macaulay2 documentation as a book, organized around objects
+and their methods, and opens it in the browser the way `viewHelp` opens the HTML
+documentation. The book is rendered and served by mdBook; M2Book offers to
+install the book tools the first time they are needed.
 
-The book is the central feature. The current stage is generation of this
-alternative chapter layout, with runtime metadata enriching the baseline.
-Over time, its explanations and organization may be substantially revised by
-hand. The generated Markdown provides a starting point for that editorial work.
+The book has two editions:
+
+- the **curated** edition is the book itself. Edited pages are kept in
+  [`M2Book/curated/`](M2Book/curated/README.md) and replace their generated
+  counterparts, while every other page follows the current baseline;
+- the **generated** edition is the baseline written from the installed
+  documentation. It is replaced whenever it is generated again, and it is what
+  edited pages start from.
 
 The split from [MarkdownDocs](https://github.com/AlexanderGolys/MarkdownDocs) is
 intentional. MarkdownDocs offers essentially the original documentation-browsing
-experience through a different rendering engine: Markdown and mdBook in place of
-the original HTML presentation. It preserves the original content and
-organization, with improved typography and graphics, and offers browser access
-to local package documentation similar to Core's `viewHelp`.
+experience through a different rendering engine, preserving the original content
+and organization. M2Book starts from that faithful edition for an alternative
+presentation: rewritten explanations, expanded coverage, editorial preferences
+and structural reorganization all belong here.
 
-M2Book uses that faithful edition as a starting point for an alternative
-presentation. Rewritten explanations, expanded coverage, editorial preferences,
-and structural reorganization all belong here. Keeping the faithful edition in
-MarkdownDocs allows the book to develop independently.
+Much of what a reader needs is missing from the prose of the documentation but
+known to the running session: the methods installed on a function and their
+return types, options with their defaults and types, type relationships, whether
+a symbol can be reassigned, and where an object is defined. M2Book gathers these
+facts for the book, and writes them as the index the m2-ls language server reads.
 
-Generation supplies a starting point for authoring the book. Subsequent work can
-involve extensive manual rewrites as well as structural changes implemented by
-the package. For example, M2Book groups a method function's installations into
-sections of its reference page and redirects links to those sections. The
-package maintains that layout and link transformation; the explanations can be
-written and improved by hand.
+## The book
 
-Runtime inspection supplies information missing from the original documentation,
-including facts held in internal hash tables. Method signatures, options, type
-relationships, mutability, and source definitions enrich the baseline and support
-further editing. Metadata export for tools such as m2-ls is a secondary use of
-that work.
+```m2
+needsPackage "M2Book"
 
-## Book layout
+viewBook                                  -- the book of Macaulay2Doc
+viewBook "Graphs"                         -- the front page of the book of Graphs
+viewBook (degree, Digraph, Thing)         -- the section of degree for digraphs
+viewBook("Graphs", Edition => "Generated")   -- its generated baseline, side by side
+```
 
 Where the installed documentation has a page for each documentation node, the
 book has a page for each object:
@@ -49,17 +49,19 @@ book has a page for each object:
 - each page opens with its details (class or ancestors, aliases, package, inputs
   and outputs), and the table of contents groups the exports of the main page.
 
-```m2
-needsPackage "M2Book"
+`viewBook` writes the book of a package below `~/.Macaulay2/M2Book/` the first
+time it is viewed in a session and serves it with `mdbook serve` in the
+background, each book on its own port, until Macaulay2 exits.
 
-viewM2Book "Graphs"   -- generate a baseline book, serve it and open it in the browser
+The generated edition can also be written anywhere, as a complete mdBook source,
+and a single page inspected in Macaulay2:
+
+```m2
+-- book/Graphs: an mdBook source titled "Graphs — Generated"
+generateBookBase("Graphs", "book", LinkedPackages => {"Macaulay2Doc"})
 
 needsPackage "Graphs"
-render m2BookPage (degree, Digraph, Thing)   -- Graphs' page for degree
-
--- book/Graphs: index.md, contents.md, a page per object, images/
-writeM2Book("Graphs", "book", LinkedPackages => {"Macaulay2Doc"})
-writeBookFiles "book/Graphs"
+render bookPage (degree, Digraph, Thing)   -- Graphs' page for degree
 ```
 
 A link to a method points at the heading of its section:
@@ -67,32 +69,31 @@ A link to a method points at the heading of its section:
 with `LinkStyle => "wikilink"`. The directory layout, links, `LinkedPackages` and
 the mdBook configuration are those of MarkdownDocs.
 
-These commands generate the baseline layout from local documentation; they
-replace their generated pages when run again. They are useful for previewing the
-structural presentation and seeding a book. An edited book should be maintained
-through targeted updates that preserve its manual rewrites.
+## Facts about objects
 
-`viewM2Book` writes a package below `~/.Macaulay2/M2Book/`, makes it an mdBook source
-and serves it with `mdbook serve` in the background, as MarkdownDocs' `mdDocs`
-does for the docs layout.
+```m2
+objectFacts End                      -- a summary; every field by its name
+(objectFacts End)#"option_passing"   -- "table"
+packageObjectFacts "Graphs"          -- every object of a package
+```
+
+`objectFacts` joins what the documentation says about an object with what the
+running session knows about it, from the many tables holding those facts. Its
+fields are those of the LSP index records described below. Fields relating an
+object to others extracted with it, such as the constructors of a type, are null
+for a single object; `packageObjectFacts` relates the objects of a package to
+each other.
 
 ## Installation
 
 M2Book needs MarkdownDocs installed. Its viewer uses `mdbook`, `mdbook-tsitter`
 for syntax highlighting, and `mdbook-katex` for mathematics. If tools are missing,
-`viewM2Book` asks whether to install them before generating the book.
+`viewBook` asks whether to install them before writing the book.
 
 ```m2
 installPackage("MarkdownDocs", FileName => "/path/to/MarkdownDocs/MarkdownDocs.m2")
 installPackage("M2Book", FileName => "/path/to/M2Book/M2Book.m2")
 check "M2Book"
-```
-
-Open the book from Macaulay2:
-
-```m2
-needsPackage "M2Book"
-viewM2Book "Graphs"       -- asks before installing missing dependencies
 installBookTools()    -- optional: run setup and verification separately
 ```
 
@@ -122,19 +123,30 @@ installer. It installs missing Rust/Cargo when necessary and uses the normal
 Cargo installation prefix for book tools unless `M2BOOK_TOOLS_ROOT` is set. It prints
 any PATH adjustment needed for the calling shell.
 
-## Runtime reference and LSP metadata
+## The m2-ls index
 
-M2Book includes the extraction API and scripts used to gather documentation and
-runtime facts for enrichment. The extracted metadata also serves secondary
-consumers such as the m2-ls type checker.
-Machine facts remain separate from editable prose so that re-extraction can
-preserve documentation improvements.
+m2-ls does not ship the index of the standard distribution. It downloads
+`m2-index.jsonl` from the latest M2Book release, verifies it against the
+`m2-index.jsonl.sha256` asset of the same release, and downloads again only when
+a new release is published. The index is a JSON Lines file: a `meta` record
+listing the packages a fresh session makes available (`default_loaded`), then one
+record per object with its structural facts and hover Markdown. Its line schema
+is [m2-index.schema.json](m2-index.schema.json).
+
+`writeLSPIndex` writes such an index for chosen packages:
+
+```m2
+writeLSPIndex("m2-index.jsonl", {"Core"}, Names => {"ZZ", "degree"})
+```
+
+The index of the whole distribution is made by the scripts, which extract its
+packages in parallel and keep the intermediate files:
 
 ```sh
-# Create a fresh reference baseline and LSP index; replaces reference/src.
+# Facts, editable reference pages and the index; replaces reference/src.
 ./scripts/generate_reference.sh
 
-# Create a smaller baseline, including packages loaded by a fresh M2 session.
+# A smaller corpus, including the packages loaded by a fresh M2 session.
 ./scripts/generate_reference.sh packages=default,Text,JSON
 ```
 
@@ -143,69 +155,25 @@ worker count for a full extraction (default: 4). Full extraction resumes complet
 package checkpoints after interruption; `M2BOOK_CHECKPOINT_DIR` can override their
 location. Keep a custom checkpoint directory exclusive to one extractor version.
 
-The current development outputs are ignored by git:
+The outputs are ignored by git:
 
 - `m2-facts.jsonl`: runtime facts and documentation source information.
 - `reference/src/`: reference Markdown pages, including missing documentation
   markers and runtime facts.
 - `m2-reference.jsonl`: complete facts with editable documentation overlaid.
-- `m2-index.jsonl`: the LSP corpus, with a leading `meta` record containing the
-  fresh-session `default_loaded` packages, followed by structural records and
-  hover Markdown. Its line schema is [m2-index.schema.json](m2-index.schema.json).
+- `m2-index.jsonl`: the index m2-ls reads.
 
-`mutable` reports whether an exported symbol can be reassigned (`isMutable` on
-the symbol), and `protected` is its inverse. For example, `allowableThreads` is
-mutable, whereas `ZZ` is protected: assigning `allowableThreads = 7` is allowed,
-but assigning `ZZ = 7` is not. These fields describe the binding, independently
-of whether the value's contents can be modified. Both are Boolean fields, or
-`null` when the query fails. These facts appear in reference pages and survive
-projection into the LSP index.
-
-Callables record how they take optional arguments. `option_passing` is `table`
-when a function accepts exactly the keys of its option table, `forwarded` when a
-method function declared with `Options => true` passes them to the installation
-a call reaches, and `absent` when it takes none. Each option lists its `default`,
-the class of that default (`defaultType`) and the type its documentation gives
-(`valueType`), which can be narrower than what the function accepts: the default
-of `DegreeLimit` for `End` is `null`, while its documented type is `ZZ`. An
-installation built with its own option table, as in `f(X) := {Labels => null} >>
-o -> ...`, lists its options and `option_passing` itself. In the LSP index both
-types are `$Package$Name` references.
-
-Object and method records also retain `source_location` (absolute filename and
-start/stop rows and columns from `locate`) and `source` (the source lines covering
-that span when the file is readable). Missing locations or source text are
-`null`, including compiled builtins without a recorded Macaulay2 definition.
-Rows are one-based and columns are zero-based, using Macaulay2's native span
-convention, with an exclusive stop column. When no implementation location is
-recorded, extraction tries the symbol's declaration. Methods retain their own
-implementation spans. A function built with options, `memoize` or `cacheValue`
-is located at the function it wraps rather than at Core's wrapper, and methods
-that only declare the typical value of a compiled function have no location. Source locations and code excerpts also appear in the
-reference pages.
-
-The scripts load M2Book directly from this checkout and use the installed
-MarkdownDocs dependency. The extraction API is also available after installing
-M2Book:
-
-```m2
-needsPackage "M2Book"
-writeReferenceJSON("m2-facts.jsonl", {}, {"Core"})
-```
-
-After editing the reference pages by hand, refresh the runtime facts and
-assemble them with the existing prose. Skip Markdown rendering so the edited
-pages are preserved:
+Machine facts remain separate from editable prose, so re-extraction preserves
+documentation improvements. After editing the reference pages by hand, refresh the
+runtime facts and assemble them with the existing prose, skipping rendering so the
+edited pages are kept:
 
 ```sh
 M2 --script scripts/extract_m2_facts.m2 m2-facts.jsonl packages=default
 M2 --script scripts/assemble_jsonl.m2 reference/src m2-facts.jsonl m2-reference.jsonl m2-index.jsonl
 ```
 
-m2-ls does not ship the index. It downloads `m2-index.jsonl` from the latest
-M2Book release, verifies it against the `m2-index.jsonl.sha256` asset of the
-same release, and downloads again only when a new release is published. Attach
-a regenerated index to a release with:
+Attach a regenerated index to a release with:
 
 ```sh
 ./scripts/publish_index.sh v0.1.0
@@ -215,9 +183,46 @@ m2-ls refuses a downloaded index that does not match its wire format, keeping
 any previously cached copy, so publish an incompatible format change only
 together with an m2-ls release that reads it.
 
-Validate the reference pipeline with `python3 -m unittest discover -s tests -v`.
-After installing M2Book, `check "M2Book"` checks book rendering and runtime
-extraction.
+### Fields
+
+`mutable` reports whether an exported symbol can be reassigned (`isMutable` on
+the symbol), and `protected` is its inverse. For example, `allowableThreads` is
+mutable, whereas `ZZ` is protected: assigning `allowableThreads = 7` is allowed,
+but assigning `ZZ = 7` is not. These fields describe the binding, independently
+of whether the value's contents can be modified. Both are Boolean fields, or
+`null` when the query fails.
+
+Callables record how they take optional arguments. `option_passing` is `table`
+when a function accepts exactly the keys of its option table, `open` when a
+method function declared with `Options => false` accepts any names, `forwarded`
+when one declared with `Options => true` passes them to the installation a call
+reaches, and `absent` when it takes none. Each option lists its `default`,
+the class of that default (`defaultType`) and the type its documentation gives
+(`valueType`), which can be narrower than what the function accepts: the default
+of `DegreeLimit` for `End` is `null`, while its documented type is `ZZ`. An
+installation built with its own option table, as in `f(X) := {Labels => null} >>
+o -> ...`, lists its options and `option_passing` itself. In the index both
+types are `$Package$Name` references.
+
+Object and method records retain `source_location` (absolute filename and
+start/stop rows and columns from `locate`) and `source` (the source lines covering
+that span when the file is readable). Missing locations or source text are
+`null`, including compiled builtins without a recorded Macaulay2 definition.
+Rows are one-based and columns are zero-based, using Macaulay2's native span
+convention, with an exclusive stop column. When no implementation location is
+recorded, extraction tries the symbol's declaration. Methods retain their own
+implementation spans. A function built with options, `memoize` or `cacheValue`
+is located at the function it wraps rather than at Core's wrapper, and methods
+that only declare the typical value of a builtin have no location.
+
+These facts appear in the reference pages and survive projection into the index.
+
+## Development
+
+Validate the reference pipeline and the book tools setup with
+`python3 -m unittest discover -s tests -v`. The scripts load M2Book directly
+from this checkout and use the installed MarkdownDocs. After installing M2Book,
+`check "M2Book"` checks the book layout, the facts and the index.
 
 ## License
 

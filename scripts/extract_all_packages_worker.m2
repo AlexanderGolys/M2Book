@@ -1,6 +1,6 @@
 -- One persistent full-runtime worker for scripts/extract_all_packages.sh.
 -- It extracts an interleaved package batch and a disjoint Core name shard after
--- a single preload. Full package records are checkpointed by writeReferenceJSON;
+-- a single preload. Full package records are checkpointed by writeObjectFacts;
 -- the Core shard is written only when that shard completes.
 --
 -- Usage:
@@ -9,6 +9,7 @@
 -- A dash disables the corresponding package or Core phase.
 
 load "./load_package.m2"
+importFrom("M2Book", {"writeObjectFacts", "standardPackageNames"})
 
 args := drop(scriptCommandLine, 1);
 if #args != 4 then
@@ -29,13 +30,13 @@ stderr << "-- preloaded " << toString(#allPackages) << " packages in "
 if packagesCSV =!= "-" then (
     targetPackages := select(separate(",", packagesCSV), pkg -> #pkg > 0);
     if #targetPackages > 0 then
-        writeReferenceJSON(packageOutput, {}, targetPackages)
+        writeObjectFacts(packageOutput, {}, targetPackages)
 );
 
 if coreNamesFile =!= "-" then (
     coreNames := select(lines get coreNamesFile, name -> #name > 0);
     if #coreNames > 0 then
-        writeReferenceJSON(coreOutput, coreNames, {"Core"})
+        writeObjectFacts(coreOutput, coreNames, {"Core"})
 );
 
 exit 0

@@ -9,6 +9,9 @@ load "./reference/extractFunc.m2"
 load "./reference/extractType.m2"
 load "./reference/extractOperator.m2"
 load "./reference/extractPackage.m2"
+-- the reference pages of a corpus, and the LSP index assembled from them
+load "./reference/pages.m2"
+load "./reference/index.m2"
 
 -- Standard distribution package entry points. Script mode (-q) intentionally
 -- omits user-installed package paths, so this list excludes local packages.
@@ -318,7 +321,7 @@ buildReference = (debugNames, targetPackages) -> (
 -- means: per package and per indexed unit, where a unit is a top-level record
 -- OR a single method installation (methods are separate index entries, so they
 -- are counted separately, not folded into their parent function).
-writeReferenceJSON = (outputPath, debugNames, targetPackages) -> (
+writeObjectFacts = (outputPath, debugNames, targetPackages) -> (
     packageGroups := if targetPackages =!= null and #targetPackages > 1
         then apply(targetPackages, pkg -> {pkg})
         else {targetPackages};
@@ -368,4 +371,90 @@ writeReferenceJSON = (outputPath, debugNames, targetPackages) -> (
         stderr << " -> " << toString(wallSeconds / nUnits) << "s/unit (mean)";
     stderr << endl;
     nRecords
+)
+
+-- The packages a fresh session makes available: Core, the packages it preloads,
+-- and the packages these export, transitively. Imported packages stay private.
+freshSessionPackages = () -> (
+    found := new MutableHashTable;
+    visit := name -> if instance(name, String) and not found#?name then (
+        found#name = true;
+        scan((needsPackage name).Options.PackageExports ?? {}, visit));
+    scan(prepend("Core", Core#"preloaded packages"), visit);
+    sort keys found
+)
+
+-----------------------------------------------------------------------------
+-- Facts about objects
+-----------------------------------------------------------------------------
+
+ObjectFacts = new Type of HashTable
+ObjectFacts.synonym = "object facts"
+
+-- The fields relating a record to the others extracted with it.
+crossReferenceFields = {"constructors", "common_operations", "option_key_for"}
+-- The fields an object's summary shows, in order.
+summaryFields = {"name", "kind", "package", "class", "typical_value", "protected",
+    "mutable", "option_passing"}
+
+objectFactsOf = record -> new ObjectFacts from pairs jsonReady new HashTable from record
+
+net ObjectFacts := facts -> netList(join(
+    apply(select(summaryFields, field -> facts#?field and facts#field =!= null),
+        field -> {field, net facts#field}),
+    apply(select({"methods", "options"}, field -> facts#?field and #facts#field > 0),
+        field -> {field, net(#facts#field) | " entries"})),
+    Boxes => false, HorizontalSpace => 2)
+
+-- The symbol naming an object: a symbol, a name, or a value with a global name.
+factsSymbol = method(Dispatch => Thing)
+factsSymbol Symbol := identity
+factsSymbol String := name -> (
+    if not isGlobalSymbol name then error("objectFacts: no global symbol ", name);
+    getGlobalSymbol name)
+factsSymbol Thing := x -> (
+    name := toString x;
+    if not isGlobalSymbol name or value getGlobalSymbol name =!= x then
+        error("objectFacts: expected a symbol, a name or a named object");
+    getGlobalSymbol name)
+
+objectFacts = method(Dispatch => Thing, TypicalValue => ObjectFacts)
+objectFacts Thing := key -> (
+    sym := factsSymbol key;
+    name := toString sym;
+    pkgname := packageForSymbol sym;
+    if pkgname === null then error("objectFacts: ", name, " belongs to no package");
+    records := select(buildReference({name}, {pkgname}), record -> record#NameFun === name);
+    if #records == 0 then error("objectFacts: no facts recorded for ", name);
+    facts := objectFactsOf first records;
+    -- extracted alone, an object has no others to relate to: unknown, not none
+    new ObjectFacts from merge(facts,
+        hashTable apply(select(crossReferenceFields, field -> facts#?field), field -> field => null),
+        last)
+)
+
+packageObjectFacts = method(TypicalValue => List)
+packageObjectFacts String := name -> apply(buildReference({}, {name}), objectFactsOf)
+packageObjectFacts Package := pkg -> packageObjectFacts pkg#"pkgname"
+
+-----------------------------------------------------------------------------
+-- The m2-ls index
+-----------------------------------------------------------------------------
+
+writeLSPIndex = method(Options => {Names => {}})
+writeLSPIndex (String, List) := ZZ => opts -> (filename, packages) -> (
+    if #packages == 0 or not all(packages, name -> instance(name, String)) then
+        error "writeLSPIndex: expected a nonempty list of package names";
+    if not instance(opts.Names, List) or not all(opts.Names, name -> instance(name, String)) then
+        error "writeLSPIndex: expected Names to be a list of strings";
+    work := temporaryFileName();
+    makeDirectory work;
+    facts := work | "/facts.jsonl";
+    writeObjectFacts(facts, opts.Names, packages);
+    writeReferencePages(facts, work | "/pages");
+    count := assembleReference(work | "/pages", facts, work | "/reference.jsonl",
+        filename, freshSessionPackages());
+    if run("rm -rf -- " | shellQuote work) != 0 then
+        error("writeLSPIndex: could not remove ", work);
+    count
 )

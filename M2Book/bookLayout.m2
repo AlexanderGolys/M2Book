@@ -1,7 +1,7 @@
 -- The book layout. Every method a package shows, documented or not, is a chapter
 -- of its function's page, and every exported symbol without documentation has a
--- page of its own; links point at those chapters and pages. m2BookPage is the
--- page showing a key, writeM2Book the pages of a package.
+-- page of its own; links point at those chapters and pages. bookPage is the
+-- page showing a key, generateBookBase the pages of a package.
 
 coreInternal := name -> value Core#"private dictionary"#name
 getPrimaryTag := coreInternal "getPrimaryTag"
@@ -579,7 +579,7 @@ protect PageSection
 protect PageTop
 protect PageChapters
 
-bookPage := (title, section, top, chapters) -> new HashTable from {
+pageRecord := (title, section, top, chapters) -> new HashTable from {
     PageTitle => title,
     PageSection => section,
     PageTop => top,
@@ -609,15 +609,15 @@ packageBookPages = pkg -> (
     functionPages := select(keys chapters, page -> not nodePages#?page and
             not missingPages#?page);
     hashTable join(
-        apply(pairs nodePages, (page, tag) -> page => bookPage(format tag,
+        apply(pairs nodePages, (page, tag) -> page => pageRecord(format tag,
             exportSection tag.Key,
             () -> bookNode tag, chaptersOf page)),
-        apply(pairs missingPages, (page, tag) -> page => bookPage(format tag,
+        apply(pairs missingPages, (page, tag) -> page => pageRecord(format tag,
             exportSection tag.Key,
             () -> missingIntroduction tag, chaptersOf page)),
         apply(functionPages, page -> (
             functionTag := makeDocumentTag first (first chapters#page).Key;
-            page => bookPage(format functionTag, "Methods", () ->
+            page => pageRecord(format functionTag, "Methods", () ->
                     functionPageIntroduction(functionTag, pkgname), chaptersOf page)
         ))
     )
@@ -640,8 +640,8 @@ bookPageDocument = (pkgname, name, page) -> (
         else {})
 )
 
-m2BookPage = method(Dispatch => Thing)
-m2BookPage Thing := MdDocument => key -> (
+bookPage = method(Dispatch => Thing)
+bookPage Thing := MdDocument => key -> (
     location := bookLocation makeDocumentTag key;
     if location === null then
         error("M2Book: no page shows ", toString key);
@@ -696,9 +696,24 @@ bookLayout := (pkg, tags) -> (
     }
 )
 
-writeM2Book = method(Options => packageDirectoryOptions)
-writeM2Book (String, String) := String => opts -> (name, dir) -> writeM2Book(
+-- A package's book in an edition, written below dir and made an mdBook source
+-- titled by the edition; the package directory.
+writeBookEdition = (pkg, dir, opts, edition) -> writeBookFiles(
+    writePackageDirectory(pkg, dir, opts, bookLayout),
+    BookTitle => pkg#"pkgname" | " — " | edition
+)
+
+generateBookBase = method(Options => packageDirectoryOptions)
+generateBookBase (String, String) := String => opts -> (name, dir) -> generateBookBase(
     needsPackage name, dir, opts
 )
-writeM2Book (Package, String) := String => opts -> (pkg, dir) ->
-    writePackageDirectory(pkg, dir, opts, bookLayout)
+generateBookBase (Package, String) := String => opts -> (pkg, dir) ->
+    writeBookEdition(pkg, dir, opts, "Generated")
+
+-- The page of a book showing a tag: its package, and the HTML file of the page
+-- with the anchor of the tag's section, if it has one; null when no page shows it.
+bookPageFile = tag -> (
+    location := bookLocation tag;
+    if location =!= null then (location#0, concatenate(location#1, ".html",
+        if location#2 =!= null then ("#", headingIdentifier location#2)))
+)

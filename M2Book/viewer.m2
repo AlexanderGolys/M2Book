@@ -75,35 +75,32 @@ bookAddress := bookDir -> (
 
 addEndFunction(() -> scan(values bookServers, server -> run("kill " | toString first server)))
 
--- Write and serve this package's book layout.
-viewPackageBook := pkg -> (
+-- (edition, package name) => the directory of the book written this session
+writtenBooks := new MutableHashTable
+
+-- The address of a package's book in an edition: written below the application
+-- directory on first use in a session, then served until M2 exits.
+editionAddress := (edition, pkgname) -> (
+    if not bookEditions#?edition then
+        error("viewBook: expected Edition to be one of ", demark(", ", sort keys bookEditions));
     ensureBookTools();
-    bookDir := writeBookFiles(writeM2Book(pkg, viewerDirectory() | "markdown"),
-        BookTitle => toString pkg | " — Generated");
-    address := bookAddress bookDir;
+    if not writtenBooks#?(edition, pkgname) then
+        writtenBooks#(edition, pkgname) = bookEditions#edition(needsPackage pkgname,
+            viewerDirectory() | toLower edition, options generateBookBase);
+    bookAddress writtenBooks#(edition, pkgname)
+)
+
+-- viewBook is a command, as viewHelp is: without an argument it opens the book
+-- of Macaulay2Doc.
+viewBookMethod := method(Dispatch => Thing, Options => {Edition => "Curated"})
+viewBookMethod Thing := String => opts -> key -> viewBookMethod(
+    if key === () then "Macaulay2Doc" else makeDocumentTag key, opts)
+viewBookMethod String := String => opts -> key -> viewBookMethod(makeDocumentTag key, opts)
+viewBookMethod DocumentTag := String => opts -> tag -> (
+    page := bookPageFile tag;
+    if page === null then error("viewBook: no page of the book shows ", format tag);
+    address := editionAddress(opts.Edition, page#0) | page#1;
     show URL address;
     address
 )
-
-viewM2Book = method()
-viewM2Book String := String => name -> viewM2Book needsPackage name
-viewM2Book Package := String => pkg -> viewPackageBook pkg
-
--- Serve an existing edition without regenerating its sources or configuration.
-openBookDirectory := dir -> (
-    bookDir := toAbsolutePath replace("/+\\z", "", dir);
-    if not fileExists(bookDir | "/book.toml") then
-        error("M2Book: no book.toml in ", bookDir);
-    ensureBookTools();
-    makeDirectory viewerDirectory();
-    address := bookAddress bookDir;
-    show URL address;
-    address
-)
-
-viewCuratedM2Book = method()
-viewCuratedM2Book (String, String) := String => (name, repository) -> (
-    ensureBookTools();
-    openBookDirectory writeCuratedM2Book(name, viewerDirectory() | "curated", repository)
-)
-viewCuratedM2Book String := String => name -> viewCuratedM2Book(name, sourceRepository)
+viewBook = new Command from viewBookMethod

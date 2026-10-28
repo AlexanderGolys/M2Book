@@ -1,25 +1,26 @@
--- Only edited pages and assets belong in the repository. Each curated build
--- starts from the current renderer and overlays those files in a separate tree.
-sourceRepository = toAbsolutePath(currentFileDirectory | "../")
+-- The editions of the book: the generated baseline, and the curated book with
+-- edited pages in place of their generated counterparts. Only edited pages and
+-- assets are kept, in curated/<package> beside this file; each curated build
+-- starts from the current renderer and overlays them in a separate tree.
+curatedSources = toAbsolutePath(currentFileDirectory | "curated/")
 shellQuote = s -> "'" | replace("'", "'\\\\''", s) | "'"
 
-writeCuratedM2Book = method(Options => options writeM2Book)
-writeCuratedM2Book (String, String, String) := String => opts -> (name, dir, repository) -> (
-    repository = toAbsolutePath repository;
-    if not fileExists(repository | "/M2Book.m2")
-        or not isDirectory(repository | "/curated") then
-        error "M2Book: provide the repository containing M2Book.m2 and curated/";
-    destination := toAbsolutePath(dir | "/" | name);
-    curatedRoot := repository | "/curated/";
-    if substring(0, #curatedRoot, destination | "/") === curatedRoot then
+-- The curated edition of a package's book, written below dir; the package
+-- directory.
+writeCuratedBook = (pkg, dir, opts) -> (
+    destination := toAbsolutePath(dir | "/" | pkg#"pkgname");
+    if substring(0, #curatedSources, destination | "/") === curatedSources then
         error "M2Book: build outside curated/ to preserve the edited sources";
-    overrides := repository | "/curated/" | name;
-    bookDir := writeBookFiles(writeM2Book(name, dir, opts),
-        BookTitle => name | " — Curated");
+    bookDir := writeBookEdition(pkg, dir, opts, "Curated");
+    overrides := curatedSources | pkg#"pkgname";
     if isDirectory overrides then (
         if run("cp -R -- " | shellQuote(overrides | "/.") | " " | shellQuote bookDir) != 0 then
             error("M2Book: could not apply curated files from ", overrides));
     bookDir
 )
-writeCuratedM2Book (String, String) := String => opts -> (name, dir) ->
-    writeCuratedM2Book(name, dir, sourceRepository, opts)
+
+-- edition => the function writing a package's book in it below a directory
+bookEditions = hashTable {
+    "Curated" => writeCuratedBook,
+    "Generated" => (pkg, dir, opts) -> writeBookEdition(pkg, dir, opts, "Generated")
+}

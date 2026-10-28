@@ -20,6 +20,7 @@
 defaultLoadedPackages := sort apply(loadedPackages, toString)
 
 load "./load_package.m2"
+importFrom("M2Book", {"writeObjectFacts", "standardPackageNames"})
 
 -- Use := (file-local) so these never become documented User globals.
 scriptArgs := drop(scriptCommandLine, 1)
@@ -56,5 +57,5 @@ if #preloadPackages > 0 then (
            << toString(preloadTimed#0) << "s" << endl << flush
 );
 
-writeReferenceJSON(outputPath, debugNames, targetPackages)
+writeObjectFacts(outputPath, debugNames, targetPackages)
 exit 0

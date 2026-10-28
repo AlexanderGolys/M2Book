@@ -326,14 +326,14 @@ overlayRecord = (base, human) -> (
 topKeep = set {
     "kind", "name", "normalized_name", "package", "class", "aliases", "extra_keys",
     "protected", "mutable", "source_location", "source",
-    "typical_value", "methods", "options", "operator",
+    "typical_value", "methods", "options", "option_passing", "operator",
     "parent", "ancestors", "subtypes", "instances"}
 -- Operator installations carry domain/typicalValue (not the old form/arity/side/
 -- flexible, which now live in the top-level `operator` field).
-methodKeep = set {"domain", "typicalValue", "exact", "returnInherited", "options",
+methodKeep = set {"domain", "typicalValue", "exact", "returnInherited", "options", "option_passing",
     "source_location", "source"}
 -- Options drop their human `description`; only the typecheck-relevant shape stays.
-optionKeep = set {"key", "default", "valueType", "possibleValues"}
+optionKeep = set {"key", "default", "defaultType", "valueType", "possibleValues"}
 projectOption = o -> if instance(o, HashTable) then new HashTable from select(pairs o, p -> optionKeep#?(p#0)) else o
 projectOptions = os -> if instance(os, BasicList) then apply(toList os, projectOption) else os
 projectMethod = m -> if instance(m, HashTable) then (
@@ -364,6 +364,23 @@ qualList = v -> if instance(v, BasicList) then apply(toList v, qualKey) else v
 -- name -- e.g. the package scope -- when needed).
 scalarRefFields = {"parent", "typical_value", "class"}
 machineRefFields = {"ancestors", "subtypes", "instances", "constructors", "common_operations"}
+-- An option's documented type and the class of its default are references too.
+-- A page may edit the documented type, so they are qualified after the overlay.
+optionRefFields = {"valueType", "defaultType"}
+qualifyOptions = os -> if not instance(os, BasicList) then os else apply(toList os, o ->
+    if not instance(o, HashTable) then o else (
+        oo := new MutableHashTable from o;
+        scan(optionRefFields, f -> if oo#?f and instance(oo#f, String) then oo#f = qualKey oo#f);
+        new HashTable from oo))
+qualifyOptionRefs = rec -> (
+    r := new MutableHashTable from rec;
+    if r#?"options" then r#"options" = qualifyOptions r#"options";
+    if r#?"methods" and instance(r#"methods", BasicList) then
+        r#"methods" = apply(toList r#"methods", m ->
+            if instance(m, HashTable) and m#?"options" then
+                merge(m, hashTable {"options" => qualifyOptions m#"options"}, last)
+            else m);
+    new HashTable from r)
 qualifyMachineRefs = rec -> (
     r := new MutableHashTable from rec;
     if r#?"source_location" and instance(r#"source_location", HashTable) then (
@@ -450,8 +467,7 @@ records = apply(pages, path -> (
             "kind" => "object",
             "package" => packageName
         });
-    rec := overlayRecord(base, human);
-    rec))
+    qualifyOptionRefs overlayRecord(base, human)))
 
 sorted = apply(sort apply(#records, i -> (
     rec := records#i;

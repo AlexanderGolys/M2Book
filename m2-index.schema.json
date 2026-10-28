@@ -179,6 +179,21 @@
             "null"
           ],
           "description": "Source lines covering the definition span when the source file is readable; null otherwise."
+        },
+        "option_passing": {
+          "description": "How a callable takes keyword options: \"table\" accepts exactly the keys in `options` (none when it is empty), \"forwarded\" (a method function declared with Options => true) passes them to the installation a call reaches, whose own `options` list the accepted keys, and \"absent\" takes none. null when it cannot be determined, including plain functions without an option table. [callables]",
+          "oneOf": [
+            {
+              "enum": [
+                "table",
+                "forwarded",
+                "absent"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     },
@@ -242,6 +257,12 @@
             "null"
           ],
           "description": "Source lines covering the definition span when the source file is readable; null otherwise."
+        },
+        "option_passing": {
+          "description": "Present as \"table\" when the installation is a function built with its own option table ({...} >> o -> ...), whose keys `options` lists; absent otherwise.",
+          "enum": [
+            "table"
+          ]
         }
       }
     },
@@ -268,8 +289,19 @@
             }
           ]
         },
+        "defaultType": {
+          "description": "Class of the default value (Nothing for a null default).",
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RefKey"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "valueType": {
-          "description": "Accepted value type, when known; null otherwise.",
+          "description": "The type the documentation gives the option (its \"Optional inputs\" entry), when documented; null otherwise. It can be narrower than what the function accepts: the default need not be an instance (see defaultType).",
           "oneOf": [
             {
               "$ref": "#/$defs/RefKey"

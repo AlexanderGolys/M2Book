@@ -88,15 +88,15 @@ operatorInfoForSymbol = sym -> if operatorAttributes#?sym then (
 -- <op>`, e.g. (+,Matrix,Matrix) -> Matrix), extracted exactly like a function's
 -- -- with domain and typicalValue. The syntactic form metadata (binary/prefix/
 -- postfix, flexible) lives in the `operator` field, not per installation.
-operatorExtras = (sym, entriesByName) -> (
+operatorExtras = (sym, db, entriesByName) -> (
     new HashTable from {
         KindFun => "operator",
         OperatorFun => operatorInfoForSymbol(sym),
-        MethodsFun => methodRecords(sym, sym, entriesByName)
+        MethodsFun => methodRecords(sym, sym, db, entriesByName)
     }
 )
 
 extractOperator = (name, sym, value, db, entriesByName) -> fillMissingFields(
     extractCommon(name, sym, value, db, entriesByName),
-    operatorExtras(sym, entriesByName)
+    operatorExtras(sym, db, entriesByName)
 )

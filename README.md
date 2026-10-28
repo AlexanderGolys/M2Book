@@ -161,6 +161,17 @@ of whether the value's contents can be modified. Both are Boolean fields, or
 `null` when the query fails. These facts appear in reference pages and survive
 projection into the LSP index.
 
+Callables record how they take optional arguments. `option_passing` is `table`
+when a function accepts exactly the keys of its option table, `forwarded` when a
+method function declared with `Options => true` passes them to the installation
+a call reaches, and `absent` when it takes none. Each option lists its `default`,
+the class of that default (`defaultType`) and the type its documentation gives
+(`valueType`), which can be narrower than what the function accepts: the default
+of `DegreeLimit` for `End` is `null`, while its documented type is `ZZ`. An
+installation built with its own option table, as in `f(X) := {Labels => null} >>
+o -> ...`, lists its options and `option_passing` itself. In the LSP index both
+types are `$Package$Name` references.
+
 Object and method records also retain `source_location` (absolute filename and
 start/stop rows and columns from `locate`) and `source` (the source lines covering
 that span when the file is readable). Missing locations or source text are

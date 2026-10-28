@@ -152,7 +152,8 @@ renderExamples = v -> concatenate apply(toList v, ex -> (
     if #out > 0 then s = s | "\n```\n" | out | "\n```\n";
     s | "\n"))
 
--- One option: "- **Key** — desc (default: `d`, type: `t`, values: `a`, `b`)".
+-- One option: "- **Key** — desc (default: `d`, default class: `c`, type: `t`,
+-- values: `a`, `b`)". The default's class is machine data, not parsed back.
 renderOption = o -> (
     -- An option key is a Symbol; link it to its page.
     line := "- **" | mdLink jstr get'(o, "key") | "**";
@@ -160,6 +161,7 @@ renderOption = o -> (
     if not isBlankVal desc then line = line | " — " | linkifyProse jstr desc;
     quals := {};
     d := get'(o, "default");      if not isBlankVal d then quals = append(quals, "default: " | inlineCode jstr d);
+    c := get'(o, "defaultType");  if not isBlankVal d and not isBlankVal c then quals = append(quals, "default class: " | inlineCode jstr c);
     t := get'(o, "valueType");    if not isBlankVal t then quals = append(quals, "type: " | inlineCode jstr t);
     pv := get'(o, "possibleValues");
     if not isBlankVal pv then quals = append(quals, "values: " | demark(", ", apply(toList pv, e -> inlineCode jstr e)));
@@ -401,6 +403,13 @@ renderSignatureDetails = v -> concatenate apply(toList v, renderSignature)
 -- Page assembly. Identity facts sit under the lede; the rest are `##` sections
 -- in a fixed, readable order. Sections are emitted only when non-blank.
 -- ---------------------------------------------------------------------------
+-- The options a callable accepts, by its `option_passing`.
+acceptedOptions = hashTable {
+    "table" => "those listed under Options",
+    "forwarded" => "those of the method each call reaches",
+    "absent" => "none"
+}
+
 -- Identity facts, in order: (jsonKey, Label, kind-of-value).
 identityFacts = rec -> (
     facts := {};
@@ -418,6 +427,10 @@ identityFacts = rec -> (
     if not isBlankVal get'(rec, "parent") then add("Parent", mdLink jstr rec#"parent");
     if not isBlankVal get'(rec, "typical_value") then add("Result type", mdLink jstr rec#"typical_value")
     else if kind === "function" then add("Result type", undocMarker);
+    passing := get'(rec, "option_passing");
+    if not isBlankVal passing then add("Options accepted",
+        if passing === "table" and isBlankVal get'(rec, "options") then acceptedOptions#"absent"
+        else acceptedOptions#passing);
     al := get'(rec, "aliases");
     if not isBlankVal al then add("Aliases", demark(", ", apply(toList al, e -> inlineCode jstr e)));
     -- Documentation slots: a documented one renders as a section below; an

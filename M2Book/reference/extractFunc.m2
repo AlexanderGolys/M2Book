@@ -103,7 +103,7 @@ methodHasOwnDocumentation = (signature, entriesByName) -> (
 
 -- `methodSource` is whatever `methods` should be queried on: the function value
 -- for functions, the operator symbol for operators (`methods symbol +`).
-methodRecords = (methodSource, sym, entriesByName) -> (
+methodRecords = (methodSource, sym, db, entriesByName) -> (
     ms := try methods methodSource;
     if ms === null or length ms == 0 then
         {}
@@ -126,14 +126,18 @@ methodRecords = (methodSource, sym, entriesByName) -> (
             mb := briefFromHelp mh;
             md := descriptionFromHelp mh;
             me := examplesFromHelp mh;
-            methodRecord(signatureItems(sig), pkg, tv,
-                if toString mb != toString fb then mb,
-                if md != fd then md else "",
-                if toString me != toString fe then
-                    me
-                else
-                    {},
-                methodSourceLocation sig
+            merge(
+                methodRecord(signatureItems(sig), pkg, tv,
+                    if toString mb != toString fb then mb,
+                    if md != fd then md else "",
+                    if toString me != toString fe then
+                        me
+                    else
+                        {},
+                    methodSourceLocation sig
+                ),
+                installationOptionFields(sig, db, toString sym),
+                last
             )
         ))
     )
@@ -156,28 +160,67 @@ typicalValueRecord = value -> (
 -- An option record. The default comes from the runtime option table; the
 -- description is the headline of the option's own doc page (parsed from the raw
 -- doc block), which the rendered function help does not surface.
+-- The type the function's documentation gives an option, from its "Optional
+-- inputs" entry `Name => a TYPE`, which links the type's page. Documented types
+-- can be narrower than what the function accepts (its default may not be an
+-- instance), so `defaultType` records the default's own class beside it.
+optionDocType = (db, funcName, optName) -> (
+    if db =!= null and db#?funcName then (
+        tag := regexCap1(
+            "TT\\{\"" | optName | "\"\\},TT\\{\" => \"\\},SPAN\\{\"an? \",TO2?\\{new DocumentTag from \\{\"([^\"]+)\"",
+            db#funcName);
+        if tag =!= null then normalizeName last separate("::", tag)
+    )
+)
+
 optionEntry = (opt, db, funcName) -> (
     if instance(opt, Option) or instance(opt, Sequence) then (
         optName := toString first opt;
         hashTable {
             KeyFun => referenceKey(optName),
             DefaultFun => safeString last opt,
-            ValueTypeFun => null,
+            DefaultTypeFun => referenceKey class last opt,
+            ValueTypeFun => optionDocType(db, funcName, optName),
             DescriptionFun => optionDocHeadline(db, funcName, optName) ?? "",
             PossibleValuesFun => {}
         }
     )
 )
 
+-- An option table holds `key => default` pairs, an option list `Option`s.
+-- Keys may mix symbols and strings, which do not compare, so order by name.
 optionRecords = (opts, db, funcName) -> (
-    if opts === null then
-        {}
-    else (
-        entries := if instance(opts, OptionTable) then pairs opts
-            else if instance(opts, BasicList) then pairs opts
-            else {};
-        select(apply(entries, opt -> optionEntry(last opt, db, funcName)), e -> e =!= null)
+    entries := if instance(opts, OptionTable) then last \ sort apply(pairs opts, opt -> (toString first opt, opt))
+        else if instance(opts, BasicList) then toList opts
+        else {};
+    select(apply(entries, opt -> optionEntry(opt, db, funcName)), e -> e =!= null)
+)
+
+-- How a method function takes options, which decides the names a call may
+-- pass: "table" accepts exactly the keys of its option table (`Options =>
+-- {...}`, or none for `Options => false`), "forwarded" (`Options => true`)
+-- hands them to the installation the call reaches, and "absent" takes none.
+-- Null when `methodOptions` cannot tell.
+methodOptionPassing = value -> (
+    optionTable := try methodOptions value;
+    if optionTable =!= null and optionTable#?Options then (
+        opts := optionTable#Options;
+        if opts === null then "absent"
+        else if opts === true then "forwarded"
+        else "table"
     )
+)
+
+-- The option table of the function installed for `signature`: a function
+-- built as `{...} >> o -> ...` accepts exactly its keys, which is how the
+-- installations of a forwarding method declare their options.
+installationOptionFields = (signature, db, funcName) -> (
+    installed := try lookup signature;
+    opts := if installed =!= null then try options installed;
+    if instance(opts, OptionTable) then hashTable {
+        OptionPassingFun => "table",
+        OptionsFun => optionRecords(opts, db, funcName)
+    } else hashTable {}
 )
 
 methodOptionRecords = (value, db, funcName) -> (
@@ -202,9 +245,10 @@ funcExtras = (name, value, sym, db, entriesByName) -> (
         DomainDescriptionFun => domainDescriptionFromHelp h,
         CodomainDescriptionFun => codomainDescriptionFromHelp h,
         MethodsFun => {},
-        OptionsFun => {}
+        OptionsFun => {},
+        OptionPassingFun => methodOptionPassing value
     };
-    methods := methodRecords(value, sym, entriesByName);
+    methods := methodRecords(value, sym, db, entriesByName);
     if #methods > 0 then
         rec#MethodsFun = methods;
     options := methodOptionRecords(value, db, name);
@@ -234,6 +278,10 @@ plainTypicalValue = value -> (
 )
 
 plainOptionRecords = (value, db, funcName) -> optionRecords(try options value, db, funcName)
+
+-- A function built as `{...} >> o -> ...` accepts exactly its option keys;
+-- null for every other function, whose options are not recorded.
+plainOptionPassing = value -> if instance(try options value, OptionTable) then "table"
 
 -- Compiled builtins have no source body and usually expose no entry through
 -- `methods`, so M2 cannot report their static call signature. Keep the small
@@ -274,12 +322,13 @@ plainFuncExtras = (name, value, sym, db, entriesByName) -> (
         DomainDescriptionFun => domainDescriptionFromHelp h,
         CodomainDescriptionFun => codomainDescriptionFromHelp h,
         MethodsFun => {},
-        OptionsFun => {}
+        OptionsFun => {},
+        OptionPassingFun => plainOptionPassing value
     };
     -- A plain function is not method-overloadable, but `methods value` still
     -- reports its call signature(s) (static dispatch). One entry IS the function's
     -- signature; several reflect installed methods. We list them either way.
-    methods := methodRecords(value, sym, entriesByName);
+    methods := methodRecords(value, sym, db, entriesByName);
     if #methods == 0 then
         methods = curatedPlainSignatureRecords(name, sym);
     if #methods > 0 then

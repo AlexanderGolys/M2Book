@@ -80,6 +80,50 @@ class ReferencePipelineTest(unittest.TestCase):
             self.assertFalse([filename for filename in plus_locations
                               if filename.endswith("/m2/typicalvalues.m2")])
 
+    def test_options_survive_the_pipeline(self):
+        with tempfile.TemporaryDirectory(prefix="m2book-options-") as directory:
+            directory = Path(directory)
+            facts = directory / "facts.jsonl"
+            pages = directory / "pages"
+            reference = directory / "reference.jsonl"
+            index = directory / "index.jsonl"
+            run_script("extract_m2_facts.m2", facts, "packages=Core",
+                       "End", "gb", "degree", "isPrime", "ZZ", "Nothing")
+            by_name = {record["name"]: record for record in read_records(facts)}
+            self.assertEqual(by_name["End"]["option_passing"], "table")
+            self.assertEqual(by_name["gb"]["option_passing"], "table")
+            self.assertEqual(by_name["degree"]["option_passing"], "absent")
+            self.assertEqual(by_name["isPrime"]["option_passing"], "forwarded")
+            degree_limit = next(option for option in by_name["End"]["options"]
+                                if option["key"] == "DegreeLimit")
+            self.assertEqual(degree_limit["valueType"], "ZZ")
+            self.assertEqual(degree_limit["defaultType"], "Nothing")
+
+            run_script("render_markdown.m2", facts, pages)
+            run_script("assemble_jsonl.m2", pages, facts, reference, index)
+            compiled = {record["name"]: record for record in read_records(index)[1:]}
+            end = compiled["End"]
+            self.assertEqual(end["option_passing"], "table")
+            self.assertIn("**Options accepted:**", end["markdown"])
+            degree_limit = next(option for option in end["options"]
+                                if option["key"] == "DegreeLimit")
+            self.assertEqual(degree_limit["valueType"], "$Core$ZZ")
+            self.assertEqual(degree_limit["defaultType"], "$Core$Nothing")
+
+            # Every field the index carries is declared by its schema.
+            definitions = json.loads((ROOT / "m2-index.schema.json").read_text())["$defs"]
+            declared = {name: set(definitions[name]["properties"])
+                        for name in ("CompiledObject", "CompiledMethod", "CompiledOption")}
+            for record in compiled.values():
+                self.assertLessEqual(set(record), declared["CompiledObject"], record["name"])
+                for option in record.get("options", []):
+                    self.assertLessEqual(set(option), declared["CompiledOption"], record["name"])
+                for method in record.get("methods", []):
+                    self.assertLessEqual(set(method), declared["CompiledMethod"], record["name"])
+                    for option in method.get("options", []):
+                        self.assertLessEqual(set(option), declared["CompiledOption"],
+                                             record["name"])
+
     def test_mutability_and_signatures_survive_the_pipeline(self):
         with tempfile.TemporaryDirectory(prefix="m2book-reference-") as directory:
             directory = Path(directory)

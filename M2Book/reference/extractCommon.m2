@@ -26,10 +26,10 @@ schemaFields = {
     DescriptionFun, ExamplesFun, SeeAlsoFun, SourceFun, SourceLocationFun,
     DocSourceFun, LastUpdateFun, VAddedFun, VLastChangeFun, DocEntriesFun,
     DomainFun, DomainDescriptionFun, EvaluatedOptionsFun, TypicalValueFun,
-    ExactFun, CodomainDescriptionFun, OptionsFun, ValueStringFun, OptionKeyForFun,
+    ExactFun, CodomainDescriptionFun, OptionsFun, OptionPassingFun, ValueStringFun, OptionKeyForFun,
     SizeFun, TypicalValueFieldFun, MethodsFun, FormFun, ArityFun, SideFun,
     FlexibleFun, TokenFun, FormsFun, AttributesFun, AssignmentFun, OperatorFun, KeyFun,
-    DefaultFun, ValueTypeFun, PossibleValuesFun, RawFun, FilenameFun, StartRowFun,
+    DefaultFun, DefaultTypeFun, ValueTypeFun, PossibleValuesFun, RawFun, FilenameFun, StartRowFun,
     StartColFun, StopRowFun, StopColFun, LinenumFun, PathFun, ParentFun,
     AncestorsFun, SubtypesFun, InstancesFun, ConstructorsFun, CommonOperationsFun,
     TitleFun, VersionFun, AuthorsFun, ExportsFun, FunctionsFun, OperatorsFun,
@@ -46,6 +46,7 @@ irregularFields = hashTable {
     TypicalValueFun => "typicalValue",
     EvaluatedOptionsFun => "evaluatedOptions",
     ValueTypeFun => "valueType",
+    DefaultTypeFun => "defaultType",
     PossibleValuesFun => "possibleValues",
     TypicalValueFieldFun => "typical_value"
 }

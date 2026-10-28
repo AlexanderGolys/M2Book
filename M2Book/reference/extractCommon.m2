@@ -303,13 +303,18 @@ valueSourceLocation = value -> (
     else if instance(value, Package) then sourceLocationFor value
 )
 
--- Methods installed on a compiled function only declare its typical value;
--- the compiled function never dispatches to them.
+-- Core declares the typical values of builtins by installing methods that are
+-- never called, on compiled functions and on keywords, all in the file defining
+-- its private typval.
+typicalValueDeclarations = sourceFilePath first locate value Core#"private dictionary"#"typval"
+
+-- A compiled function never dispatches to the methods installed on it.
 methodSourceLocation = signature -> (
     if instance(first signature, CompiledFunction) then return null;
     implementation := try lookup signature;
-    if instance(implementation, Function) then functionSourceLocation implementation
-    else sourceLocationFor signature
+    location := if instance(implementation, Function) then functionSourceLocation implementation
+        else sourceLocationFor signature;
+    if location =!= null and location#FilenameFun =!= typicalValueDeclarations then location
 )
 
 -- Cache file contents: the full corpus has many records per source file, and

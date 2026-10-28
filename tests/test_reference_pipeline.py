@@ -58,7 +58,7 @@ class ReferencePipelineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="m2book-locations-") as directory:
             facts = Path(directory) / "facts.jsonl"
             run_script("extract_m2_facts.m2", facts, "packages=Core",
-                       "End", "method", "errorDepth", "ascii")
+                       "End", "method", "errorDepth", "ascii", "+")
             by_name = {record["name"]: record for record in read_records(facts)}
             # Functions with options are located at their body, not Core's wrapper.
             self.assertTrue(by_name["End"]["source_location"]["filename"].endswith("/Hom.m2"))
@@ -72,6 +72,13 @@ class ReferencePipelineTest(unittest.TestCase):
             self.assertTrue(by_name["ascii"]["methods"])
             for method in by_name["ascii"]["methods"]:
                 self.assertIsNone(method["source_location"])
+            # So do those Core installs on keywords; real operator methods keep theirs.
+            plus_locations = [method["source_location"]["filename"]
+                              for method in by_name["+"]["methods"]
+                              if method["source_location"]]
+            self.assertTrue(plus_locations)
+            self.assertFalse([filename for filename in plus_locations
+                              if filename.endswith("/m2/typicalvalues.m2")])
 
     def test_mutability_and_signatures_survive_the_pipeline(self):
         with tempfile.TemporaryDirectory(prefix="m2book-reference-") as directory:

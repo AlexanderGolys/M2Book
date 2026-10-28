@@ -29,7 +29,16 @@ testCase("a variable is not taken for an alias of its value", () -> (
     result := runScript("list_package_reference_names.m2", {"Core"});
     succeeds(result, "listing the names of Core");
     names := set lines result#"stdout";
-    expect(names#?"lastMatch" and names#?"null", "both lastMatch and null listed", result)))
+    expect(names#?"lastMatch" and names#?"null", "both lastMatch and null listed", result);
+    -- extracted together with the constants their values print as
+    dir := scratchDirectory "m2book-variables";
+    variables := {"lastMatch", "debuggingMode", "notify", "backtrace"};
+    facts := recordsByName readRecords extractFacts(dir, "Core", join({"true", "false", "null"}, variables));
+    scan(variables, name -> expect(facts#?name, "a record of the variable " | name, null));
+    -- a constant still keeps a single record for its other names
+    aliases := recordsByName readRecords extractFacts(dir, "Core", {"indeterminate", "NotANumber"});
+    expect(#aliases == 1, "one record for indeterminate and NotANumber", null);
+    removeScratch dir))
 
 testCase("invalid source spans are recovered", () -> (
     dir := scratchDirectory "m2book-sources";

@@ -28,6 +28,19 @@ standardPackageNames = () -> (
         )))
 )
 
+-- A single object can be bound to several global names (e.g. `indeterminate` and
+-- `NotANumber` are the *identical* value). A name is an alias of another when its
+-- value prints as that other extracted name, which holds the same object; only
+-- the name M2 prints is kept, listing the others among its aliases. A variable
+-- is never an alias, whatever value it holds now: debuggingMode holds false.
+isAliasName = (runtimeDict, nameSet, sym, val, name) -> (
+    printed := try toString val;
+    not isMutable sym and printed =!= null and printed =!= name and nameSet#?printed and (
+        printedSym := symbolForName(runtimeDict, printed);
+        printedSym =!= null and (valueForSymbol printedSym) === val
+    )
+)
+
 -- Canonical top-level record names owned by one package. This is used to shard
 -- exceptionally large packages (Core) without splitting aliases of the same
 -- runtime object across workers.
@@ -54,14 +67,8 @@ packageReferenceNames = packageName -> (
             if val === valueFailed then
                 false
             else (
-                cp := try toString val;
-                -- a variable is never an alias, whatever value it holds now
-                aliasDuplicate := not isMutable sym and cp =!= null and cp =!= name and nameSet#?cp and (
-                    canonicalSym := symbolForName(runtimeDict, cp);
-                    canonicalSym =!= null and (valueForSymbol canonicalSym) === val
-                );
                 kind := recordKind(sym, val, safeClass val, name);
-                not aliasDuplicate and (
+                not isAliasName(runtimeDict, nameSet, sym, val, name) and (
                     shouldExtractName name
                     or (kind === "operator" and not hasNonAscii name)
                 )
@@ -243,20 +250,9 @@ buildReference = (debugNames, targetPackages) -> (
             isPackageNode name
             or (sym =!= null and targetSet#?(packageForSymbol sym))
         ));
+    -- Name-debasing only collapses `Core$x` onto `x`; other names of the same
+    -- object are dropped by isAliasName.
     nameSet := set names;
-    -- A single object can be bound to several global names (e.g. `indeterminate` and
-    -- `NotANumber` are the *identical* value). Name-debasing only collapses `Core$x`
-    -- onto `x`; it cannot see these. We keep just the record whose name is M2's
-    -- canonical print form (`toString val`) and drop the others -- each is already
-    -- listed in the keeper's aliases. A name is a droppable alias-dup when the print
-    -- name is a *different* extracted name resolving to the *same* object.
-    isAliasDuplicate := (val, name) -> (
-        cp := try toString val;
-        cp =!= null and cp =!= name and nameSet#?cp and (
-            s2 := symbolForName(runtimeDict, cp);
-            s2 =!= null and (valueForSymbol s2) === val
-        )
-    );
     (parentOf, ancestorsOf, childrenOf, instancesOf) := buildTypeHierarchy(names, runtimeDict);
     -- Generation timestamp, ISO 8601 UTC (schema's ISODateTime).
     nowIso := replace("[[:space:]]+$", "", get "!date -u +%Y-%m-%dT%H:%M:%SZ");
@@ -277,7 +273,7 @@ buildReference = (debugNames, targetPackages) -> (
         if val === valueFailed then
             return null;
         -- Drop alias-duplicate names of the same object (keep the canonical print name).
-        if isAliasDuplicate(val, name) then
+        if isAliasName(runtimeDict, nameSet, sym, val, name) then
             return null;
         className := safeClass val;
         kind := recordKind(sym, val, className, name);

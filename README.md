@@ -168,7 +168,9 @@ that span when the file is readable). Missing locations or source text are
 Rows are one-based and columns are zero-based, using Macaulay2's native span
 convention, with an exclusive stop column. When no implementation location is
 recorded, extraction tries the symbol's declaration. Methods retain their own
-implementation spans. Source locations and code excerpts also appear in the
+implementation spans. A function built with options, `memoize` or `cacheValue`
+is located at the function it wraps rather than at Core's wrapper, and methods
+that only declare the typical value of a compiled function have no location. Source locations and code excerpts also appear in the
 reference pages.
 
 The scripts load M2Book directly from this checkout and use the installed

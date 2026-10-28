@@ -54,6 +54,25 @@ class ReferencePipelineTest(unittest.TestCase):
             self.assertIsNone(missing["source_location"])
             self.assertIsNone(missing["source"])
 
+    def test_source_locations_skip_core_wrappers(self):
+        with tempfile.TemporaryDirectory(prefix="m2book-locations-") as directory:
+            facts = Path(directory) / "facts.jsonl"
+            run_script("extract_m2_facts.m2", facts, "packages=Core",
+                       "End", "method", "errorDepth", "ascii")
+            by_name = {record["name"]: record for record in read_records(facts)}
+            # Functions with options are located at their body, not Core's wrapper.
+            self.assertTrue(by_name["End"]["source_location"]["filename"].endswith("/Hom.m2"))
+            self.assertIn("End =", by_name["End"]["source"])
+            self.assertIn("method =", by_name["method"]["source"])
+            # An integer value is not an index into the last `methods` listing.
+            error_depth = by_name["errorDepth"]
+            self.assertTrue(error_depth["source_location"] is None
+                            or "errorDepth" in error_depth["source"])
+            # Typical-value declarations on a compiled function have no definition.
+            self.assertTrue(by_name["ascii"]["methods"])
+            for method in by_name["ascii"]["methods"]:
+                self.assertIsNone(method["source_location"])
+
     def test_mutability_and_signatures_survive_the_pipeline(self):
         with tempfile.TemporaryDirectory(prefix="m2book-reference-") as directory:
             directory = Path(directory)

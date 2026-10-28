@@ -440,8 +440,11 @@ Node
       Source locations give the file of the definition with its start and stop
       rows and columns: rows count from one and columns from zero, with an
       exclusive stop column, as @TO locate@ reports them. The field named source
-      holds the source lines of that span when the file is readable. Both are
-      null for compiled builtins without a recorded definition.
+      holds the source lines of that span when the file is readable. A function
+      built with options, @TO memoize@ or @TO cacheValue@ is located at the
+      function it wraps rather than at the wrapper in Core. Both fields are null
+      for compiled builtins without a recorded definition, including the methods
+      that only declare the typical value of a compiled function.
     Example
       sort keys first records
       removeFile filename

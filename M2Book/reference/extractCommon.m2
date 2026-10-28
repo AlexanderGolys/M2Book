@@ -270,6 +270,48 @@ sourceLocationFor = x -> (
     }
 )
 
+-- Core builds some functions as closures around another function, so `locate`
+-- reports Core's wrapper instead of the definition. Like Core's `codeHelper`,
+-- recognise a wrapper by its function body. Each entry gives the function it
+-- wraps, or null when it combines several and no single definition exists.
+capturedFunction = closure -> (
+    captured := select(toList first frames closure, v -> instance(v, Function));
+    if #captured == 1 then first captured
+)
+wrappedFunctions = hashTable {
+    functionBody({} >> identity) => capturedFunction,
+    functionBody(true >> identity) => capturedFunction,
+    functionBody memoize identity => capturedFunction,
+    functionBody (cacheValue null) identity => capturedFunction,
+    functionBody (stashValue null) identity => capturedFunction,
+    functionBody(identity @@ identity) => closure -> null
+}
+
+functionSourceLocation = f -> (
+    body := if instance(f, FunctionClosure) then functionBody f;
+    if wrappedFunctions#?body then (
+        wrapped := wrappedFunctions#body f;
+        if wrapped =!= null then functionSourceLocation wrapped)
+    else sourceLocationFor f
+)
+
+-- `locate` reinterprets other values: an integer indexes the last `methods`
+-- listing and a sequence is read as a method key, so only functions and
+-- packages have a location of their own.
+valueSourceLocation = value -> (
+    if instance(value, Function) then functionSourceLocation value
+    else if instance(value, Package) then sourceLocationFor value
+)
+
+-- Methods installed on a compiled function only declare its typical value;
+-- the compiled function never dispatches to them.
+methodSourceLocation = signature -> (
+    if instance(first signature, CompiledFunction) then return null;
+    implementation := try lookup signature;
+    if instance(implementation, Function) then functionSourceLocation implementation
+    else sourceLocationFor signature
+)
+
 -- Cache file contents: the full corpus has many records per source file, and
 -- `get` re-reads from disk each call.
 fileLinesCache = new MutableHashTable
@@ -922,7 +964,7 @@ extractCommon = (name, sym, value, db, entriesByName) -> (
     -- Method-function values point at the shared dispatch machinery; use their
     -- symbol's declaration instead. Other objects prefer their implementation,
     -- falling back to their symbol's declaration when no body is recorded.
-    srcLoc := if kind =!= "methodFunction" then sourceLocationFor value;
+    srcLoc := if kind =!= "methodFunction" then valueSourceLocation value;
     if srcLoc === null then srcLoc = sourceLocationFor sym;
     -- "runtime value" tag for symbols whose value is runtime-set data/config.
     tags := tagsForRecord(db, entriesByName, name);

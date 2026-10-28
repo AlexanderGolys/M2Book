@@ -133,7 +133,7 @@ methodRecords = (methodSource, sym, entriesByName) -> (
                     me
                 else
                     {},
-                sourceLocationFor sig
+                methodSourceLocation sig
             )
         ))
     )

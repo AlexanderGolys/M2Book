@@ -219,9 +219,10 @@ These facts appear in the reference pages and survive projection into the index.
 
 ## Development
 
-Validate the reference pipeline and the book tools setup with
-`python3 -m unittest discover -s tests -v`. The scripts load M2Book directly
-from this checkout and use the installed MarkdownDocs. After installing M2Book,
+Validate the book tools setup and the reference pipeline with
+`M2 --script tests/all.m2`, or one part with `tests/bookTools.m2` or
+`tests/referencePipeline.m2`. The tests and scripts load M2Book directly from
+this checkout and use the installed MarkdownDocs. After installing M2Book,
 `check "M2Book"` checks the book layout, the facts and the index.
 
 ## License

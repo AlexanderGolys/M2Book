@@ -17,7 +17,3 @@ TODO.md
 /m2-index.jsonl
 /reference/
 /*.log
-
-# Python validation artifacts
-__pycache__/
-*.py[cod]
